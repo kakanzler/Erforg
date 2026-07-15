@@ -25,3 +25,8 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# private, local-only book data — never published (view via `npm run dev`)
+/content/kindle.md
+/content/tsundoku.md
+/.next-dev.log

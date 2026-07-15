@@ -3,6 +3,7 @@ import path from "node:path";
 import matter from "gray-matter";
 
 const BOOKS_DIR = path.join(process.cwd(), "content", "books");
+const TSUNDOKU_FILE = path.join(process.cwd(), "content", "tsundoku.md");
 
 /** YAML may parse `2026-06-20` as a Date; normalize any value to YYYY-MM-DD. */
 function normalizeDate(value: unknown): string {
@@ -60,7 +61,39 @@ export function formatReadDate(iso: string): string {
 }
 
 export function getBook(slug: string): Book | undefined {
-  return getAllBooks().find((b) => b.slug === slug);
+  // Route params for non-ASCII slugs can arrive percent-encoded; match either form.
+  let decoded = slug;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    /* keep raw */
+  }
+  return getAllBooks().find((b) => b.slug === slug || b.slug === decoded);
+}
+
+export type TbrBook = { title: string; author?: string };
+
+/**
+ * The "積んでる本" (to-read) pile. Kept as a simple list in content/tsundoku.md:
+ * one book per `- ` line, optionally `- タイトル / 著者` (also accepts ｜ or |).
+ */
+export function getTsundoku(): TbrBook[] {
+  if (!fs.existsSync(TSUNDOKU_FILE)) return [];
+  const raw = fs.readFileSync(TSUNDOKU_FILE, "utf8");
+  const { content } = matter(raw);
+  return content
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("- "))
+    .map((l) => {
+      // Split title / author only on a whitespace-padded delimiter, so slashes
+      // inside a title (e.g. "Fate/stay night") are left intact.
+      const body = l.slice(2).trim();
+      const m = body.match(/^(.*?)\s+[/｜|]\s+(.*)$/);
+      if (m) return { title: m[1].trim(), author: m[2].trim() || undefined };
+      return { title: body, author: undefined };
+    })
+    .filter((b) => b.title.length > 0);
 }
 
 /** Distinct categories with their book counts, sorted by count desc. */
