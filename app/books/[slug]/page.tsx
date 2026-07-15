@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { formatReadDate, getAllBooks, getBook } from "@/lib/books";
 import { Stars } from "@/components/Stars";
+import { MarkdownView } from "@/components/MarkdownView";
 
 export function generateStaticParams() {
   return getAllBooks().map((b) => ({ slug: b.slug }));
@@ -46,9 +45,7 @@ export default function BookPage({ params }: { params: { slug: string } }) {
         </header>
 
         <div className="record-body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {book.content}
-          </ReactMarkdown>
+          <MarkdownView>{book.content}</MarkdownView>
         </div>
       </article>
     </main>

@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { TbrBook } from "@/lib/books";
-import { RecordForm } from "./RecordForm";
+
+// The form pulls in react-markdown + KaTeX for its live preview; load it only
+// when a book is actually being turned into a record (never on the public page).
+const RecordForm = dynamic(
+  () => import("./RecordForm").then((m) => m.RecordForm),
+  { ssr: false }
+);
 
 /**
  * 積読リスト。ローカル開発時(editable)は各行から記事を作成でき、作成すると

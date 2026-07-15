@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { EB_Garamond, Shippori_Mincho } from "next/font/google";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const garamond = EB_Garamond({
