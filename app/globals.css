@@ -1,0 +1,253 @@
+:root {
+  --ink: #3a2a16;
+  --ink-soft: #5c452a;
+  --ink-faint: #877154;
+  --accent: #7a2e22; /* deep vermilion, matches the framed reference */
+  --rule: rgba(122, 46, 34, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  color: var(--ink);
+  font-family: var(--font-mincho), "Hiragino Mincho ProN", "Yu Mincho", serif;
+  line-height: 1.9;
+  /* Parchment texture fills the whole page and stays fixed while scrolling. */
+  background-color: #d8c29a;
+  background-image: url("/backgrounds/parchment.svg");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* A subtle darkening at the edges so text stays readable over the texture. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 250, 235, 0.35) 0%,
+    rgba(120, 90, 50, 0.12) 100%
+  );
+  z-index: -1;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 6rem;
+}
+
+/* ---- Headings ---- */
+.site-title {
+  font-family: var(--font-garamond), var(--font-mincho), serif;
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  letter-spacing: 0.06em;
+  text-align: center;
+  margin: 0 0 0.2rem;
+  color: var(--ink);
+}
+
+.site-subtitle {
+  text-align: center;
+  color: var(--ink-soft);
+  letter-spacing: 0.3em;
+  font-size: 0.8rem;
+  margin: 0 0 2.5rem;
+  text-transform: uppercase;
+}
+
+.section-title {
+  font-size: 1rem;
+  letter-spacing: 0.25em;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.5rem;
+  margin: 2.5rem 0 1.25rem;
+}
+
+/* ---- Category chips ---- */
+.categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.chip {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: rgba(255, 248, 230, 0.35);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.chip:hover,
+.chip[data-active="true"] {
+  background: var(--accent);
+  color: #fdf6e6;
+  border-color: var(--accent);
+}
+
+/* ---- Book list ---- */
+.book-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.book-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0.25rem;
+  border-bottom: 1px dashed var(--rule);
+}
+
+.book-row:hover .book-row-title {
+  color: var(--accent);
+}
+
+.book-row-main {
+  min-width: 0;
+}
+
+.book-row-title {
+  font-size: 1.25rem;
+  transition: color 0.2s ease;
+}
+
+.book-row-meta {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+
+.stars {
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.stars .empty {
+  opacity: 0.3;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.tag {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+}
+
+/* ---- Single record ---- */
+.back-link {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+}
+
+.record {
+  margin-top: 1.5rem;
+}
+
+.record-header {
+  text-align: center;
+  border-bottom: 2px solid var(--rule);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.record-title {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  margin: 0 0 0.4rem;
+}
+
+.record-sub {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+}
+
+.record-body {
+  font-size: 1.05rem;
+}
+
+.record-body h2 {
+  font-size: 1.4rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.3rem;
+  margin-top: 2.2rem;
+}
+
+.record-body h3 {
+  font-size: 1.15rem;
+  margin-top: 1.8rem;
+}
+
+.record-body blockquote {
+  margin: 1.5rem 0;
+  padding: 0.4rem 1.2rem;
+  border-left: 3px solid var(--accent);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.record-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.record-body code {
+  background: rgba(90, 60, 30, 0.12);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.record-body pre {
+  background: rgba(50, 35, 20, 0.9);
+  color: #f3e9d2;
+  padding: 1rem 1.2rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.record-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.empty-note {
+  text-align: center;
+  color: var(--ink-soft);
+  margin-top: 3rem;
+}
