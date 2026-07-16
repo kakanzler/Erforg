@@ -60,20 +60,26 @@ const TOOLS: Tool[] = [
 ];
 
 export function RecordForm({
-  title,
-  author,
+  initialTitle = "",
+  initialAuthor = "",
+  sourceTitle,
   categories,
   onDone,
   onCancel,
 }: {
-  title: string;
-  author?: string;
+  initialTitle?: string;
+  initialAuthor?: string;
+  /** 積読から開いた場合の元タイトル。作成後にその行を積読から消すのに使う。 */
+  sourceTitle?: string;
   categories: string[];
   onDone: (slug: string) => void;
   onCancel: () => void;
 }) {
   const router = useRouter();
-  const [slug, setSlug] = useState(() => slugify(title));
+  const [title, setTitle] = useState(initialTitle);
+  const [author, setAuthor] = useState(initialAuthor);
+  const [slug, setSlug] = useState(() => slugify(initialTitle));
+  const [slugTouched, setSlugTouched] = useState(false);
   const [category, setCategory] = useState("");
   const [rating, setRating] = useState(4);
   const [dateRead, setDateRead] = useState(today());
@@ -103,6 +109,11 @@ export function RecordForm({
       pendingSel.current = null;
     }
   }, [body]);
+
+  // Keep slug in sync with the title until the user edits the slug by hand.
+  useEffect(() => {
+    if (!slugTouched) setSlug(slugify(title));
+  }, [title, slugTouched]);
 
   function record(value: string) {
     const h = hist.current;
@@ -233,8 +244,8 @@ export function RecordForm({
             .map((t) => t.trim())
             .filter(Boolean),
           body,
-          originalTitle: title,
-          originalAuthor: author,
+          originalTitle: sourceTitle,
+          originalAuthor: initialAuthor,
         }),
       });
       const json = await res.json();
@@ -254,12 +265,28 @@ export function RecordForm({
   return (
     <div className="rf">
       <div className="rf-row">
-        <label className="rf-label">タイトル</label>
-        <div className="rf-static">{title}</div>
+        <label className="rf-label" htmlFor="rf-title">
+          タイトル
+        </label>
+        <input
+          id="rf-title"
+          className="rf-input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="本のタイトル"
+        />
       </div>
       <div className="rf-row">
-        <label className="rf-label">著者</label>
-        <div className="rf-static">{author || "不明"}</div>
+        <label className="rf-label" htmlFor="rf-author">
+          著者
+        </label>
+        <input
+          id="rf-author"
+          className="rf-input"
+          value={author}
+          onChange={(e) => setAuthor(e.target.value)}
+          placeholder="著者名"
+        />
       </div>
 
       <div className="rf-row">
@@ -270,7 +297,10 @@ export function RecordForm({
           id="rf-slug"
           className="rf-input"
           value={slug}
-          onChange={(e) => setSlug(e.target.value)}
+          onChange={(e) => {
+            setSlugTouched(true);
+            setSlug(e.target.value);
+          }}
         />
       </div>
 

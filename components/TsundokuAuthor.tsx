@@ -51,8 +51,9 @@ export function TsundokuAuthor({
           </div>
           {editable && openIndex === i && (
             <RecordForm
-              title={b.title}
-              author={b.author}
+              initialTitle={b.title}
+              initialAuthor={b.author}
+              sourceTitle={b.title}
               categories={categories}
               onCancel={() => setOpenIndex(null)}
               onDone={(slug) => {

@@ -3,6 +3,7 @@ import { getAllBooks, getCategories, getTsundoku } from "@/lib/books";
 import { BookList } from "@/components/BookList";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { TsundokuList } from "@/components/TsundokuList";
+import { AddRecord } from "@/components/AddRecord";
 
 export default function Home({
   searchParams,
@@ -14,11 +15,14 @@ export default function Home({
   const allBooks = getAllBooks();
   const books = allBooks.filter((b) => !active || b.category === active);
   const tsundoku = getTsundoku();
+  const editable = process.env.NODE_ENV !== "production";
 
   return (
     <main className="container">
       <h1 className="site-title">Erfolg</h1>
       <p className="site-subtitle">Reading Records</p>
+
+      <AddRecord categories={categories.map((c) => c.name)} editable={editable} />
 
       <ActivityHeatmap books={allBooks} />
 
