@@ -1,4 +1,5 @@
 import type { Article } from "@/lib/books";
+import { HeatmapTooltip } from "./HeatmapTooltip";
 
 const WEEKDAYS = ["月", "", "水", "", "金", "", ""];
 const MONTHS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
@@ -19,7 +20,12 @@ function heatLevel(count: number, max: number): number {
   return 4;
 }
 
-type Cell = { key: string; count: number } | null;
+type Cell = { key: string; count: number; tip: string } | null;
+
+/** "2026.07.19" — the tooltip heading, without the 読了 suffix. */
+function dotted(key: string): string {
+  return key.replace(/-/g, ".");
+}
 
 /**
  * GitHub-style contribution grid. Cells are shaded by how many articles
@@ -34,14 +40,19 @@ export function ActivityHeatmap({
 }) {
   const y = year ?? new Date().getFullYear();
 
-  const counts = new Map<string, number>();
+  // Which articles landed on each day — the count drives the shade, the list
+  // becomes the hover text.
+  const byDay = new Map<string, Article[]>();
   for (const a of articles) {
     if (!a.dateRead) continue;
     const d = new Date(a.dateRead);
     if (Number.isNaN(d.getTime()) || d.getFullYear() !== y) continue;
     const key = toKey(d);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const list = byDay.get(key);
+    if (list) list.push(a);
+    else byDay.set(key, [a]);
   }
+  const counts = new Map([...byDay].map(([k, v]) => [k, v.length]));
   const max = Math.max(1, ...counts.values());
   const total = [...counts.values()].reduce((a, b) => a + b, 0);
   const todayIso = toKey(new Date());
@@ -53,7 +64,14 @@ export function ActivityHeatmap({
   for (let i = 0; i < pad; i++) days.push(null);
   while (cursor.getFullYear() === y) {
     const key = toKey(cursor);
-    days.push({ key, count: counts.get(key) ?? 0 });
+    const on = byDay.get(key) ?? [];
+    const tip = on.length
+      ? [
+          `${dotted(key)}（${on.length}記事）`,
+          ...on.map((a) => `${a.bookTitle} — ${a.title}`),
+        ].join("\n")
+      : "";
+    days.push({ key, count: on.length, tip });
     cursor.setDate(cursor.getDate() + 1);
   }
   while (days.length % 7 !== 0) days.push(null);
@@ -85,7 +103,8 @@ export function ActivityHeatmap({
         </span>
       </div>
 
-      <div className="heatmap-scroll">
+      <HeatmapTooltip>
+        <div className="heatmap-scroll">
         <div className="heatmap-grid">
           <div className="hm-weekdays">
             <div className="hm-monthrow-spacer" />
@@ -118,7 +137,8 @@ export function ActivityHeatmap({
                         className="hm-cell"
                         data-level={future ? 0 : heatLevel(cell.count, max)}
                         data-today={cell.key === todayIso ? "true" : undefined}
-                        title={`${cell.key} ・ ${cell.count}記事`}
+                        // Only days with activity get a tooltip.
+                        data-tip={cell.tip || undefined}
                       />
                     );
                   })}
@@ -127,7 +147,8 @@ export function ActivityHeatmap({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </HeatmapTooltip>
 
       <div className="heatmap-legend">
         <span>少</span>

@@ -27,6 +27,8 @@ function slugMatches(candidate: string, param: string): boolean {
 
 export type Article = {
   bookSlug: string;
+  /** Denormalized from the parent book, so a flat article list can name it. */
+  bookTitle: string;
   slug: string;
   title: string;
   dateRead: string; // ISO date, e.g. "2026-06-20"
@@ -45,13 +47,14 @@ export type Book = {
   articles: Article[]; // newest dateRead first
 };
 
-function toArticle(bookSlug: string, fileName: string): Article {
+function toArticle(bookSlug: string, bookTitle: string, fileName: string): Article {
   const slug = fileName.replace(/\.md$/, "");
   const raw = fs.readFileSync(path.join(BOOKS_DIR, bookSlug, fileName), "utf8");
   const { data, content } = matter(raw);
 
   return {
     bookSlug,
+    bookTitle,
     slug,
     title: String(data.title ?? slug),
     dateRead: normalizeDate(data.dateRead),
@@ -85,7 +88,7 @@ function toBook(dirName: string): Book {
   const articles = fs
     .readdirSync(dir)
     .filter((f) => f.endsWith(".md") && !f.startsWith("_"))
-    .map((f) => toArticle(dirName, f))
+    .map((f) => toArticle(dirName, title, f))
     .sort((a, b) => (a.dateRead < b.dateRead ? 1 : -1));
 
   return { slug: dirName, title, author, category, tags, content, articles };

@@ -269,6 +269,32 @@ a {
   border: 1.5px solid var(--accent);
 }
 
+.hm-hover {
+  position: relative;
+}
+
+.hm-cell[data-tip] {
+  cursor: help;
+}
+
+/* Fixed, not absolute: the scroll container's overflow would clip it. */
+.hm-tip {
+  position: fixed;
+  z-index: 50;
+  transform: translate(-50%, calc(-100% - 8px));
+  max-width: 220px;
+  white-space: pre-line;
+  pointer-events: none;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: #f3e6c8;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 0.4rem 0.6rem;
+  box-shadow: 0 6px 18px rgba(40, 25, 8, 0.35);
+}
+
 .heatmap-legend {
   display: flex;
   align-items: center;
