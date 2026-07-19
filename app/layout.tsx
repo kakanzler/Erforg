@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import { EB_Garamond, Shippori_Mincho } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
+import {
+  getAllBooks,
+  getCategories,
+  getTsundoku,
+  getTsundokuCategories,
+} from "@/lib/books";
+import { AppShell } from "@/components/AppShell";
 
 const garamond = EB_Garamond({
   subsets: ["latin"],
@@ -46,9 +53,33 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Only the fields the sidebars render — passing whole Book objects would ship
+  // every article body to the client on every page.
+  const books = getAllBooks().map((b) => ({
+    slug: b.slug,
+    title: b.title,
+    author: b.author,
+    category: b.category,
+    articles: b.articles.map((a) => ({
+      slug: a.slug,
+      title: a.title,
+      dateRead: a.dateRead,
+      rating: a.rating,
+    })),
+  }));
+
   return (
     <html lang="ja" className={`${garamond.variable} ${mincho.variable}`}>
-      <body>{children}</body>
+      <body>
+        <AppShell
+          books={books}
+          categories={getCategories()}
+          tsundoku={getTsundoku()}
+          tsundokuCategories={getTsundokuCategories()}
+        >
+          {children}
+        </AppShell>
+      </body>
     </html>
   );
 }

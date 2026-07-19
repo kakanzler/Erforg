@@ -110,6 +110,10 @@ export function TsundokuAuthor({
               books={existingBooks}
               initialTitle={openBook.title}
               initialAuthor={openBook.author}
+              // "未分類" is the absence of a category, not one worth prefilling.
+              initialCategory={
+                openBook.category === "未分類" ? undefined : openBook.category
+              }
               sourceTitle={openBook.title}
               categories={categories}
               onCancel={() => setOpenIndex(null)}

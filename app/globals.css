@@ -14,6 +14,8 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* The sidebars are wide; nothing may push the page sideways. */
+  overflow-x: hidden;
 }
 
 body {
@@ -52,6 +54,205 @@ a {
   max-width: 860px;
   margin: 0 auto;
   padding: 4rem 1.5rem 6rem;
+}
+
+/* ---- Three-column shell (sidebars + page) ----
+   Stacking order, from the back: sidebars (100) < overlay backdrop (150) <
+   overlay sidebars (200) < their toggle buttons (300) < the record-form modal
+   (1000). Authoring must never end up behind a sidebar. */
+.shell {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.shell-center {
+  flex: 1 1 auto;
+  /* Without this a long, unbreakable line in an article would widen the column
+     instead of scrolling inside it. */
+  min-width: 0;
+}
+
+.shell-side {
+  --side-w: 300px;
+  flex: 0 0 var(--side-w);
+  width: var(--side-w);
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 3rem 1rem 2.5rem;
+  background: rgba(255, 248, 230, 0.3);
+  z-index: 100;
+}
+
+.shell-side[data-open="false"] {
+  display: none;
+}
+
+.shell-side-left {
+  border-right: 1px solid var(--rule);
+}
+
+.shell-side-right {
+  border-left: 1px solid var(--rule);
+}
+
+/* Always reachable, including while its sidebar is closed. */
+.shell-toggle {
+  position: fixed;
+  top: 0.6rem;
+  z-index: 300;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: rgba(255, 248, 230, 0.85);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.32rem 0.6rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.shell-toggle:hover {
+  background: var(--accent);
+  color: #fdf6e6;
+  border-color: var(--accent);
+}
+
+.shell-toggle-left {
+  left: 0.6rem;
+}
+
+.shell-toggle-right {
+  right: 0.6rem;
+}
+
+/* Only meaningful once the sidebars become overlays (see the media query). */
+.shell-backdrop {
+  display: none;
+}
+
+/* ---- Sidebar-scaled type ---- */
+.shell-side .section-title {
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  margin: 1.6rem 0 0.8rem;
+}
+
+.shell-side .section-title:first-child {
+  margin-top: 0;
+}
+
+.shell-side .categories {
+  gap: 0.35rem;
+  margin-bottom: 0.8rem;
+}
+
+.shell-side .chip {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.shell-side .tree-node {
+  padding: 0.45rem 0 0.5rem;
+}
+
+.shell-side .tree-book-main {
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.shell-side .tree-book-title {
+  font-size: 0.92rem;
+}
+
+.shell-side .tree-book-meta {
+  font-size: 0.7rem;
+}
+
+.shell-side .tree-articles {
+  padding-left: 0.3rem;
+}
+
+.shell-side .tree-article {
+  flex-wrap: wrap;
+}
+
+.shell-side .tree-article-title {
+  font-size: 0.82rem;
+}
+
+.shell-side .tree-article-meta {
+  margin-left: 1.1rem;
+  width: 100%;
+  font-size: 0.68rem;
+}
+
+/* The column is too narrow to sit title and author side by side — a long title
+   would squeeze the author into a one-word-per-line ribbon. Stack them. */
+.shell-side .tbr-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0.1rem 0.4rem;
+  padding: 0.4rem 0.15rem;
+}
+
+.shell-side .tbr-title {
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.shell-side .tbr-author {
+  grid-column: 2;
+  font-size: 0.7rem;
+}
+
+.shell-side .tbr-count {
+  display: block;
+  margin: 0 0 0.5rem;
+}
+
+.shell-side .see-all {
+  font-size: 0.8rem;
+}
+
+/* Below this width a third column would squeeze the article text, so both
+   sidebars become overlay panels floating above the page instead. */
+@media (max-width: 1100px) {
+  .shell-side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    flex: none;
+    width: min(320px, 86vw);
+    max-height: none;
+    z-index: 200;
+    background-color: #e2cfa8;
+    background-image: url("/backgrounds/parchment.svg");
+    background-size: cover;
+    box-shadow: 0 0 40px rgba(30, 18, 6, 0.45);
+  }
+
+  .shell-side-left {
+    left: 0;
+  }
+
+  .shell-side-right {
+    right: 0;
+  }
+
+  .shell-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    background: rgba(40, 28, 14, 0.45);
+  }
 }
 
 /* ---- Headings ---- */
@@ -334,7 +535,14 @@ a {
   border-color: var(--accent);
 }
 
-/* ---- Book tree (top page) ---- */
+/* The 積読 filter chips are buttons (local state), not links to a URL. */
+button.chip {
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+/* ---- Book tree (sidebar) ---- */
 .tree {
   list-style: none;
   margin: 0;
@@ -346,16 +554,47 @@ a {
   border-bottom: 1px dashed var(--rule);
 }
 
+.tree-book-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
 .tree-book {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.tree-book-mark {
-  color: var(--ink-faint);
-  font-size: 0.8rem;
+/* ▾ open / ▸ closed — hides the book's article rows. */
+.tree-toggle {
+  flex: none;
+  font-family: inherit;
+  font-size: 0.7rem;
   line-height: 1.6;
+  color: var(--ink-faint);
+  background: none;
+  border: none;
+  padding: 0 0.1rem;
+  cursor: pointer;
+}
+
+.tree-toggle:hover {
+  color: var(--accent);
+}
+
+/* Where you are right now, so the tree doubles as a position indicator. */
+.tree-book[data-current="true"] .tree-book-title,
+.tree-article[data-current="true"] .tree-article-title {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tree-article[data-current="true"] {
+  background: rgba(122, 46, 34, 0.08);
+  border-radius: 3px;
 }
 
 .tree-book-main {

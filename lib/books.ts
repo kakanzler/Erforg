@@ -144,11 +144,21 @@ export function getArticle(
   return getBook(bookSlug)?.articles.find((a) => slugMatches(a.slug, articleSlug));
 }
 
-export type TbrBook = { title: string; author?: string };
+export type TbrBook = { title: string; author?: string; category: string };
+
+/** A 積読 entry with no category of its own. */
+const NO_CATEGORY = "未分類";
+
+/**
+ * Only a whitespace-padded delimiter separates fields, so a slash inside a
+ * title (e.g. "Fate/stay night") is left intact.
+ */
+const TBR_DELIMITER = /\s+[/｜|]\s+/;
 
 /**
  * The "積んでる本" (to-read) pile. Kept as a simple list in content/tsundoku.md:
- * one book per `- ` line, optionally `- タイトル / 著者` (also accepts ｜ or |).
+ * one book per `- ` line, as `- タイトル / 著者 / カテゴリ`, `- タイトル / 著者`
+ * or just `- タイトル` (｜ and | work as delimiters too).
  */
 export function getTsundoku(): TbrBook[] {
   if (!fs.existsSync(TSUNDOKU_FILE)) return [];
@@ -159,14 +169,32 @@ export function getTsundoku(): TbrBook[] {
     .map((l) => l.trim())
     .filter((l) => l.startsWith("- "))
     .map((l) => {
-      // Split title / author only on a whitespace-padded delimiter, so slashes
-      // inside a title (e.g. "Fate/stay night") are left intact.
-      const body = l.slice(2).trim();
-      const m = body.match(/^(.*?)\s+[/｜|]\s+(.*)$/);
-      if (m) return { title: m[1].trim(), author: m[2].trim() || undefined };
-      return { title: body, author: undefined };
+      const parts = l
+        .slice(2)
+        .trim()
+        .split(TBR_DELIMITER)
+        .map((p) => p.trim());
+      // A 4th field would be a delimiter inside the category; keep it whole
+      // rather than dropping the tail silently.
+      const category = parts.slice(2).join(" / ").trim();
+      return {
+        title: parts[0] ?? "",
+        author: parts[1] || undefined,
+        category: category || NO_CATEGORY,
+      };
     })
     .filter((b) => b.title.length > 0);
+}
+
+/** Distinct 積読 categories with their counts, sorted by count desc. */
+export function getTsundokuCategories(): { name: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const b of getTsundoku()) {
+    counts.set(b.category, (counts.get(b.category) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
 }
 
 /** Distinct categories with their book counts, sorted by count desc. */
