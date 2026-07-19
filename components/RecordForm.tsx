@@ -1,8 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MarkdownView } from "./MarkdownView";
+
+const DRAFT_PREFIX = "erfolg:draft:";
+const DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // stale drafts stop nagging after 2 weeks
+
+type Draft = {
+  savedAt: number;
+  title: string;
+  author: string;
+  slug: string;
+  slugTouched: boolean;
+  category: string;
+  rating: number;
+  dateRead: string;
+  tags: string;
+  body: string;
+};
 
 export function slugify(title: string): string {
   const s = title
@@ -109,6 +125,31 @@ export function RecordForm({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const pendingSel = useRef<[number, number] | null>(null);
 
+  // Stable per-form draft key: keyed by the edit slug, or by the 積読 source
+  // title in create mode, so reopening the same form finds the same draft.
+  const draftKey = useMemo(
+    () => (isEdit ? `${DRAFT_PREFIX}edit:${editSlug}` : `${DRAFT_PREFIX}new:${sourceTitle ?? ""}`),
+    [isEdit, editSlug, sourceTitle]
+  );
+  const [foundDraft, setFoundDraft] = useState<Draft | null>(null);
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The values the form opened with. Autosave only fires once something
+  // actually differs from these, so merely opening a form can never overwrite
+  // an existing draft. (Skipping "the first effect run" instead would not work:
+  // React StrictMode double-invokes effects in dev, and the second run would
+  // write back the untouched initial values, destroying the saved draft.)
+  const openedWith = useRef({
+    title,
+    author,
+    slug,
+    slugTouched,
+    category,
+    rating,
+    dateRead,
+    tags,
+    body,
+  });
+
   // Undo/redo history (covers toolbar insertions, which the native textarea
   // undo stack misses). Typing is coalesced via a short debounce.
   // Seed with the body actually loaded, so the first undo in edit mode does not
@@ -132,6 +173,114 @@ export function RecordForm({
   useEffect(() => {
     if (!slugTouched) setSlug(slugify(title));
   }, [title, slugTouched]);
+
+  // On mount, look for a leftover draft and offer to restore it (never auto-applied).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as Draft;
+      if (!draft || typeof draft.savedAt !== "number") return;
+      if (Date.now() - draft.savedAt >= DRAFT_TTL_MS) return;
+
+      // A draft identical to the form's opening values is just an echo, not
+      // something worth surfacing — discard it silently.
+      const isEcho =
+        draft.title === title &&
+        draft.author === author &&
+        draft.slug === slug &&
+        draft.slugTouched === slugTouched &&
+        draft.category === category &&
+        draft.rating === rating &&
+        draft.dateRead === dateRead &&
+        draft.tags === tags &&
+        draft.body === body;
+      if (isEcho) {
+        window.localStorage.removeItem(draftKey);
+        return;
+      }
+      setFoundDraft(draft);
+    } catch {
+      // ignore parse/storage errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced autosave of the current form state, skipped while the form still
+  // holds exactly the values it opened with.
+  useEffect(() => {
+    const o = openedWith.current;
+    const untouched =
+      title === o.title &&
+      author === o.author &&
+      slug === o.slug &&
+      slugTouched === o.slugTouched &&
+      category === o.category &&
+      rating === o.rating &&
+      dateRead === o.dateRead &&
+      tags === o.tags &&
+      body === o.body;
+    if (untouched) return;
+
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(() => {
+      if (typeof window === "undefined") return;
+      try {
+        const draft: Draft = {
+          savedAt: Date.now(),
+          title,
+          author,
+          slug,
+          slugTouched,
+          category,
+          rating,
+          dateRead,
+          tags,
+          body,
+        };
+        window.localStorage.setItem(draftKey, JSON.stringify(draft));
+      } catch {
+        // ignore quota/private-mode failures
+      }
+    }, 600);
+    return () => {
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+    };
+  }, [draftKey, title, author, slug, slugTouched, category, rating, dateRead, tags, body]);
+
+  function restoreDraft() {
+    if (!foundDraft) return;
+    setTitle(foundDraft.title);
+    setAuthor(foundDraft.author);
+    setSlug(foundDraft.slug);
+    setSlugTouched(foundDraft.slugTouched);
+    setCategory(foundDraft.category);
+    setRating(foundDraft.rating);
+    setDateRead(foundDraft.dateRead);
+    setTags(foundDraft.tags);
+    setBody(foundDraft.body);
+    hist.current = { stack: [foundDraft.body], index: 0 };
+    setFoundDraft(null);
+  }
+
+  function discardDraft() {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(draftKey);
+      } catch {
+        // ignore storage errors
+      }
+    }
+    setFoundDraft(null);
+  }
+
+  function formatDraftTime(savedAt: number): string {
+    const d = new Date(savedAt);
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes()
+    ).padStart(2, "0")}`;
+  }
 
   function record(value: string) {
     const h = hist.current;
@@ -273,6 +422,13 @@ export function RecordForm({
         setBusy(false);
         return;
       }
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem(draftKey);
+        } catch {
+          // ignore storage errors
+        }
+      }
       router.refresh();
       onDone(json.slug);
     } catch (e) {
@@ -283,6 +439,17 @@ export function RecordForm({
 
   return (
     <div className="rf">
+      {foundDraft && (
+        <div className="rf-draft">
+          下書きが残っています（<time>{formatDraftTime(foundDraft.savedAt)}</time>保存）
+          <button type="button" className="rf-draft-btn" onClick={restoreDraft}>
+            復元
+          </button>
+          <button type="button" className="rf-draft-btn" onClick={discardDraft}>
+            破棄
+          </button>
+        </div>
+      )}
       <div className="rf-row">
         <label className="rf-label" htmlFor="rf-title">
           タイトル
