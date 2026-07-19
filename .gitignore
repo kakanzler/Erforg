@@ -32,3 +32,6 @@ next-env.d.ts
 /.next-dev.log
 /dev.log
 /prod.log
+
+# typescript incremental build cache
+/tsconfig.tsbuildinfo
