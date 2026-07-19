@@ -320,6 +320,20 @@ a {
   margin: 0.5rem 0 2rem;
 }
 
+/* The top-page authoring buttons sit on one row and wrap when narrow. */
+.top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0.5rem 0 2rem;
+}
+
+.top-actions .add-record,
+.top-actions .draft-list {
+  margin: 0;
+}
+
 .edit-record {
   text-align: right;
   margin: 0.4rem 0 1rem;
@@ -391,12 +405,182 @@ a {
   border-color: var(--accent);
 }
 
+/* The draft browser needs far more room than the 720px form. */
+.modal-panel-wide {
+  max-width: 1240px;
+}
+
 /* Inside the modal the form needs no card chrome of its own. */
 .modal-panel .rf {
   background: none;
   border: none;
   padding: 0;
   margin: 0.75rem 0 0;
+}
+
+/* ---- Draft browser (local only) ---- */
+.draft-list-btn {
+  font-family: inherit;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  background: rgba(255, 253, 246, 0.55);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.5rem 1.2rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.draft-list-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.db {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+  /* Each pane scrolls on its own; the panel never grows past the viewport. */
+  max-height: 76vh;
+}
+
+.db-none {
+  display: block;
+  max-height: none;
+}
+
+/* min-width:0 keeps a long line inside its column instead of widening the grid. */
+.db-list,
+.db-preview {
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.db-preview {
+  border-left: 1px solid var(--rule);
+  padding-left: 1.25rem;
+}
+
+.db-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.db-section + .db-section .db-section-title {
+  margin-top: 1.75rem;
+}
+
+.db-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.db-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--rule);
+  padding: 0.5rem 0.4rem;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.db-item:hover {
+  background: rgba(255, 253, 246, 0.5);
+}
+
+.db-item.is-active {
+  background: rgba(255, 248, 230, 0.75);
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+}
+
+.db-item-title {
+  display: block;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.db-item-meta {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.db-empty {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  margin: 0.2rem 0.4rem;
+}
+
+.db-preview-title {
+  margin: 0;
+  font-size: 1.3rem;
+  overflow-wrap: anywhere;
+}
+
+.db-preview-meta {
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0;
+}
+
+.db-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.db-discard {
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  background: rgba(255, 248, 230, 0.6);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.15rem 0.65rem;
+  margin-top: 0.9rem;
+  cursor: pointer;
+}
+
+.db-discard:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.db-body {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+}
+
+/* Below ~1000px the preview would be squeezed to nothing: stack instead. */
+@media (max-width: 1000px) {
+  .db {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .db-list,
+  .db-preview {
+    overflow-y: visible;
+  }
+
+  .db-preview {
+    border-left: none;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+    padding-top: 1rem;
+  }
 }
 
 /* ---- Activity heatmap ---- */

@@ -9,9 +9,12 @@ import { createPortal } from "react-dom";
  */
 export function Modal({
   onClose,
+  wide = false,
   children,
 }: {
   onClose: () => void;
+  /** Widen the panel past the default form width (draft browser). */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   useEffect(() => {
@@ -31,7 +34,11 @@ export function Modal({
 
   return createPortal(
     <div className="modal-backdrop">
-      <div className="modal-panel" role="dialog" aria-modal="true">
+      <div
+        className={`modal-panel${wide ? " modal-panel-wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+      >
         <button className="modal-close" onClick={onClose} aria-label="閉じる">
           ✕
         </button>
