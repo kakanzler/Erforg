@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { TbrBook } from "@/lib/books";
+import { Modal } from "./Modal";
 
 // The form pulls in react-markdown + KaTeX for its live preview; load it only
 // when a book is actually being turned into a record (never on the public page).
@@ -30,6 +31,8 @@ export function TsundokuAuthor({
 
   if (books.length === 0) return null;
 
+  const openBook = openIndex !== null ? books[openIndex] : null;
+
   return (
     <ul className="tbr-list">
       {books.map((b, i) => (
@@ -37,7 +40,7 @@ export function TsundokuAuthor({
           <div className="tbr-item">
             <span className="tbr-title">{b.title}</span>
             {b.author && <span className="tbr-author">{b.author}</span>}
-            {editable && openIndex !== i && (
+            {editable && (
               <button
                 className="tbr-create"
                 onClick={() => {
@@ -49,21 +52,25 @@ export function TsundokuAuthor({
               </button>
             )}
           </div>
-          {editable && openIndex === i && (
-            <RecordForm
-              initialTitle={b.title}
-              initialAuthor={b.author}
-              sourceTitle={b.title}
-              categories={categories}
-              onCancel={() => setOpenIndex(null)}
-              onDone={(slug) => {
-                setOpenIndex(null);
-                setCreated(slug);
-              }}
-            />
-          )}
         </li>
       ))}
+
+      {editable && openBook && (
+        <Modal onClose={() => setOpenIndex(null)}>
+          <RecordForm
+            initialTitle={openBook.title}
+            initialAuthor={openBook.author}
+            sourceTitle={openBook.title}
+            categories={categories}
+            onCancel={() => setOpenIndex(null)}
+            onDone={(slug) => {
+              setOpenIndex(null);
+              setCreated(slug);
+            }}
+          />
+        </Modal>
+      )}
+
       {created && (
         <li className="tbr-created-note">
           記録を作成しました →{" "}
