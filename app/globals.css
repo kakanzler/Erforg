@@ -308,39 +308,150 @@ a {
   border-color: var(--accent);
 }
 
-/* ---- Book list ---- */
-.book-list {
+/* ---- Book tree (top page) ---- */
+.tree {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.book-row {
+.tree-node {
+  padding: 0.9rem 0.25rem 1rem;
+  border-bottom: 1px dashed var(--rule);
+}
+
+.tree-book {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.tree-book-mark {
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.tree-book-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.9rem;
+  min-width: 0;
+}
+
+.tree-book-title {
+  font-size: 1.2rem;
+  transition: color 0.2s ease;
+}
+
+.tree-book:hover .tree-book-title {
+  color: var(--accent);
+}
+
+.tree-book-meta {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.tree-articles {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0 0 0 0.55rem;
+}
+
+.tree-article {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.22rem 0;
+  color: var(--ink-soft);
+}
+
+.tree-connector {
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+.tree-article-title {
+  font-size: 0.98rem;
+  color: var(--ink);
+  transition: color 0.2s ease;
+}
+
+.tree-article:hover .tree-article-title {
+  color: var(--accent);
+}
+
+.tree-article-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.tree-article-meta .stars {
+  font-size: 0.8rem;
+}
+
+.tree-empty {
+  margin: 0.4rem 0 0 1.1rem;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+/* On a narrow screen the date/stars drop under the title instead of squeezing it. */
+@media (max-width: 560px) {
+  .tree-article {
+    flex-wrap: wrap;
+  }
+
+  .tree-article-meta {
+    margin-left: 1.4rem;
+    width: 100%;
+  }
+}
+
+/* ---- Article list (book page) ---- */
+.article-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.article-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 0.25rem;
+  padding: 0.8rem 0.25rem;
   border-bottom: 1px dashed var(--rule);
 }
 
-.book-row:hover .book-row-title {
-  color: var(--accent);
-}
-
-.book-row-main {
+.article-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
   min-width: 0;
 }
 
-.book-row-title {
-  font-size: 1.25rem;
+.article-row-title {
+  font-size: 1.1rem;
   transition: color 0.2s ease;
 }
 
-.book-row-meta {
+.article-row:hover .article-row-title {
+  color: var(--accent);
+}
+
+.article-row-meta {
   color: var(--ink-soft);
-  font-size: 0.85rem;
-  margin-top: 0.15rem;
+  font-size: 0.82rem;
 }
 
 .stars {
@@ -735,6 +846,14 @@ a {
   border-bottom: 2px solid var(--rule);
   padding-bottom: 1.5rem;
   margin-bottom: 2rem;
+}
+
+/* The parent book, shown above an article title. */
+.record-book {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.4rem;
 }
 
 .record-title {

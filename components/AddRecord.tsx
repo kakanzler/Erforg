@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Modal } from "./Modal";
+import type { BookOption } from "./RecordForm";
 
 // Loaded only when the form is opened, so the (empty) public bundle stays light.
 const RecordForm = dynamic(
@@ -16,14 +17,18 @@ const RecordForm = dynamic(
  * Local dev only — the button and form never render in production.
  */
 export function AddRecord({
+  books,
   categories,
   editable,
 }: {
+  books: BookOption[];
   categories: string[];
   editable: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [created, setCreated] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ bookSlug: string; slug: string } | null>(
+    null
+  );
 
   if (!editable) return null;
 
@@ -35,11 +40,12 @@ export function AddRecord({
       {open && (
         <Modal onClose={() => setOpen(false)}>
           <RecordForm
+            books={books}
             categories={categories}
             onCancel={() => setOpen(false)}
-            onDone={(slug) => {
+            onDone={(r) => {
               setOpen(false);
-              setCreated(slug);
+              setCreated(r);
             }}
           />
         </Modal>
@@ -47,8 +53,11 @@ export function AddRecord({
       {created && (
         <p className="tbr-created-note">
           記録を作成しました →{" "}
-          <Link href={`/books/${created}`} className="see-all">
-            {created} を見る
+          <Link
+            href={`/books/${created.bookSlug}/${created.slug}`}
+            className="see-all"
+          >
+            {created.slug} を見る
           </Link>
         </p>
       )}

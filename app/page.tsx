@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getAllBooks, getCategories, getTsundoku } from "@/lib/books";
-import { BookList } from "@/components/BookList";
+import { getAllArticles, getAllBooks, getCategories, getTsundoku } from "@/lib/books";
+import { BookTree } from "@/components/BookTree";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { TsundokuList } from "@/components/TsundokuList";
 import { AddRecord } from "@/components/AddRecord";
@@ -14,6 +14,7 @@ export default function Home({
   const categories = getCategories();
   const allBooks = getAllBooks();
   const books = allBooks.filter((b) => !active || b.category === active);
+  const articles = getAllArticles();
   const tsundoku = getTsundoku();
   const editable = process.env.NODE_ENV !== "production";
 
@@ -22,9 +23,18 @@ export default function Home({
       <h1 className="site-title">Erfolg</h1>
       <p className="site-subtitle">Reading Records</p>
 
-      <AddRecord categories={categories.map((c) => c.name)} editable={editable} />
+      <AddRecord
+        books={allBooks.map((b) => ({
+          slug: b.slug,
+          title: b.title,
+          author: b.author,
+          category: b.category,
+        }))}
+        categories={categories.map((c) => c.name)}
+        editable={editable}
+      />
 
-      <ActivityHeatmap books={allBooks} />
+      <ActivityHeatmap articles={articles} />
 
       <h2 className="section-title">CATEGORY</h2>
       <div className="categories">
@@ -43,10 +53,13 @@ export default function Home({
         ))}
       </div>
 
+      {/* Both counts, because a book can hold several articles — a single
+          number here would contradict the heatmap's article total. */}
       <h2 className="section-title">
-        {active ? active : "ALL RECORDS"}（{books.length}）
+        {active ? active : "BOOKS"}（{books.length}冊 ・{" "}
+        {books.reduce((n, b) => n + b.articles.length, 0)}記事）
       </h2>
-      <BookList books={books} />
+      <BookTree books={books} />
 
       {tsundoku.length > 0 && (
         <>

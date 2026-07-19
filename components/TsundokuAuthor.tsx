@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { TbrBook } from "@/lib/books";
 import { Modal } from "./Modal";
+import type { BookOption } from "./RecordForm";
 
 // The form pulls in react-markdown + KaTeX for its live preview; load it only
 // when a book is actually being turned into a record (never on the public page).
@@ -27,15 +28,20 @@ function norm(s: string): string {
  */
 export function TsundokuAuthor({
   books,
+  existingBooks,
   categories,
   editable,
 }: {
   books: TbrBook[];
+  /** すでに content/books にある本。記事の親として選べるようにする。 */
+  existingBooks: BookOption[];
   categories: string[];
   editable: boolean;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [created, setCreated] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ bookSlug: string; slug: string } | null>(
+    null
+  );
   const [query, setQuery] = useState("");
 
   // Keep each book's index in the *original* list — openIndex refers to that,
@@ -101,14 +107,15 @@ export function TsundokuAuthor({
         {editable && openBook && (
           <Modal onClose={() => setOpenIndex(null)}>
             <RecordForm
+              books={existingBooks}
               initialTitle={openBook.title}
               initialAuthor={openBook.author}
               sourceTitle={openBook.title}
               categories={categories}
               onCancel={() => setOpenIndex(null)}
-              onDone={(slug) => {
+              onDone={(r) => {
                 setOpenIndex(null);
-                setCreated(slug);
+                setCreated(r);
               }}
             />
           </Modal>
@@ -117,8 +124,11 @@ export function TsundokuAuthor({
         {created && (
           <li className="tbr-created-note">
             記録を作成しました →{" "}
-            <Link href={`/books/${created}`} className="see-all">
-              {created} を見る
+            <Link
+              href={`/books/${created.bookSlug}/${created.slug}`}
+              className="see-all"
+            >
+              {created.slug} を見る
             </Link>
           </li>
         )}

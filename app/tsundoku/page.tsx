@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCategories, getTsundoku } from "@/lib/books";
+import { getAllBooks, getCategories, getTsundoku } from "@/lib/books";
 import { TsundokuAuthor } from "@/components/TsundokuAuthor";
 
 export const metadata = {
@@ -9,6 +9,13 @@ export const metadata = {
 export default function TsundokuPage() {
   const books = getTsundoku();
   const categories = getCategories().map((c) => c.name);
+  // Only the fields the form needs — not whole Book objects with their articles.
+  const existingBooks = getAllBooks().map((b) => ({
+    slug: b.slug,
+    title: b.title,
+    author: b.author,
+    category: b.category,
+  }));
   // Authoring writes files to the working tree — local dev only.
   const editable = process.env.NODE_ENV !== "production";
 
@@ -29,7 +36,12 @@ export default function TsundokuPage() {
         </p>
       )}
 
-      <TsundokuAuthor books={books} categories={categories} editable={editable} />
+      <TsundokuAuthor
+        books={books}
+        existingBooks={existingBooks}
+        categories={categories}
+        editable={editable}
+      />
     </main>
   );
 }

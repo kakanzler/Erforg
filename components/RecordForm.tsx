@@ -7,18 +7,54 @@ import { MarkdownView } from "./MarkdownView";
 const DRAFT_PREFIX = "erfolg:draft:";
 const DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // stale drafts stop nagging after 2 weeks
 
-type Draft = {
-  savedAt: number;
+/** Sentinel `<option>` value for "this article belongs to a brand-new book". */
+const NEW_BOOK = "__new__";
+
+/** Everything the form owns — snapshotted for draft save / restore. */
+type FormState = {
+  parent: string; // an existing book slug, or NEW_BOOK
+  bookTitle: string;
+  bookAuthor: string;
+  bookCategory: string;
+  bookSlug: string;
+  bookSlugTouched: boolean;
   title: string;
-  author: string;
   slug: string;
   slugTouched: boolean;
-  category: string;
   rating: number;
   dateRead: string;
   tags: string;
   body: string;
 };
+
+type Draft = FormState & { savedAt: number };
+
+/**
+ * Rebuild a state object with a fixed key order, so two snapshots can be
+ * compared by their JSON. Also normalizes a draft written by an older shape:
+ * a missing field compares equal to the corresponding empty value.
+ */
+function snapshot(s: Partial<FormState>): FormState {
+  return {
+    parent: s.parent ?? NEW_BOOK,
+    bookTitle: s.bookTitle ?? "",
+    bookAuthor: s.bookAuthor ?? "",
+    bookCategory: s.bookCategory ?? "",
+    bookSlug: s.bookSlug ?? "",
+    bookSlugTouched: s.bookSlugTouched ?? false,
+    title: s.title ?? "",
+    slug: s.slug ?? "",
+    slugTouched: s.slugTouched ?? false,
+    rating: s.rating ?? 0,
+    dateRead: s.dateRead ?? "",
+    tags: s.tags ?? "",
+    body: s.body ?? "",
+  };
+}
+
+function sameState(a: Partial<FormState>, b: Partial<FormState>): boolean {
+  return JSON.stringify(snapshot(a)) === JSON.stringify(snapshot(b));
+}
 
 export function slugify(title: string): string {
   const s = title
@@ -202,10 +238,19 @@ const TEXT_GROUP: ToolGroup = {
   ],
 };
 
+export type BookOption = {
+  slug: string;
+  title: string;
+  author: string;
+  category: string;
+};
+
 export function RecordForm({
+  books,
   initialTitle = "",
   initialAuthor = "",
   sourceTitle,
+  editBookSlug,
   editSlug,
   initialCategory,
   initialRating,
@@ -216,11 +261,15 @@ export function RecordForm({
   onDone,
   onCancel,
 }: {
+  /** 既存の本の一覧。親の本を選ぶセレクトに出す。 */
+  books: BookOption[];
   initialTitle?: string;
   initialAuthor?: string;
   /** 積読から開いた場合の元タイトル。作成後にその行を積読から消すのに使う。 */
   sourceTitle?: string;
-  /** 指定されると編集モードになる（編集前の slug）。 */
+  /** 編集モードのとき、記事が属している本の slug。 */
+  editBookSlug?: string;
+  /** 指定されると編集モードになる（編集前の記事 slug）。 */
   editSlug?: string;
   initialCategory?: string;
   initialRating?: number;
@@ -229,17 +278,31 @@ export function RecordForm({
   initialTags?: string;
   initialBody?: string;
   categories: string[];
-  onDone: (slug: string) => void;
+  onDone: (r: { bookSlug: string; slug: string }) => void;
   onCancel: () => void;
 }) {
   const isEdit = Boolean(editSlug);
   const router = useRouter();
+
+  // Parent book. Editing starts on the article's current book; every other
+  // entry point (積読 / top page) starts on a brand-new book.
+  const [parent, setParent] = useState<string>(() =>
+    isEdit && editBookSlug ? editBookSlug : NEW_BOOK
+  );
+  const isNewBook = parent === NEW_BOOK;
+  const selectedBook = books.find((b) => b.slug === parent);
+
+  // New-book fields. Ignored by the API whenever the parent already exists.
+  const [bookTitle, setBookTitle] = useState(initialTitle);
+  const [bookAuthor, setBookAuthor] = useState(initialAuthor);
+  const [bookCategory, setBookCategory] = useState(initialCategory ?? "");
+  const [bookSlug, setBookSlug] = useState(() => slugify(initialTitle));
+  const [bookSlugTouched, setBookSlugTouched] = useState(false);
+
   const [title, setTitle] = useState(initialTitle);
-  const [author, setAuthor] = useState(initialAuthor);
   const [slug, setSlug] = useState(() => (isEdit ? editSlug! : slugify(initialTitle)));
   // In edit mode the slug must not follow the title — a rename is deliberate.
   const [slugTouched, setSlugTouched] = useState(isEdit);
-  const [category, setCategory] = useState(initialCategory ?? "");
   const [rating, setRating] = useState(initialRating ?? 4);
   const [dateRead, setDateRead] = useState(initialDateRead ?? today());
   const [tags, setTags] = useState(initialTags ?? "");
@@ -252,11 +315,15 @@ export function RecordForm({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const pendingSel = useRef<[number, number] | null>(null);
 
-  // Stable per-form draft key: keyed by the edit slug, or by the 積読 source
-  // title in create mode, so reopening the same form finds the same draft.
+  // Stable per-form draft key: keyed by the edited article's *book and* slug —
+  // two articles of the same book would otherwise share one draft — or by the
+  // 積読 source title in create mode, so reopening the same form finds it again.
   const draftKey = useMemo(
-    () => (isEdit ? `${DRAFT_PREFIX}edit:${editSlug}` : `${DRAFT_PREFIX}new:${sourceTitle ?? ""}`),
-    [isEdit, editSlug, sourceTitle]
+    () =>
+      isEdit
+        ? `${DRAFT_PREFIX}edit:${editBookSlug ?? ""}/${editSlug}`
+        : `${DRAFT_PREFIX}new:${sourceTitle ?? ""}`,
+    [isEdit, editBookSlug, editSlug, sourceTitle]
   );
   const [foundDraft, setFoundDraft] = useState<Draft | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -265,17 +332,22 @@ export function RecordForm({
   // an existing draft. (Skipping "the first effect run" instead would not work:
   // React StrictMode double-invokes effects in dev, and the second run would
   // write back the untouched initial values, destroying the saved draft.)
-  const openedWith = useRef({
+  const current: FormState = {
+    parent,
+    bookTitle,
+    bookAuthor,
+    bookCategory,
+    bookSlug,
+    bookSlugTouched,
     title,
-    author,
     slug,
     slugTouched,
-    category,
     rating,
     dateRead,
     tags,
     body,
-  });
+  };
+  const openedWith = useRef<FormState>(current);
 
   // Undo/redo history (covers toolbar insertions, which the native textarea
   // undo stack misses). Typing is coalesced via a short debounce.
@@ -296,10 +368,14 @@ export function RecordForm({
     }
   }, [body]);
 
-  // Keep slug in sync with the title until the user edits the slug by hand.
+  // Keep each slug in sync with its title until that slug is edited by hand.
   useEffect(() => {
     if (!slugTouched) setSlug(slugify(title));
   }, [title, slugTouched]);
+
+  useEffect(() => {
+    if (!bookSlugTouched) setBookSlug(slugify(bookTitle));
+  }, [bookTitle, bookSlugTouched]);
 
   // On mount, look for a leftover draft and offer to restore it (never auto-applied).
   useEffect(() => {
@@ -313,17 +389,7 @@ export function RecordForm({
 
       // A draft identical to the form's opening values is just an echo, not
       // something worth surfacing — discard it silently.
-      const isEcho =
-        draft.title === title &&
-        draft.author === author &&
-        draft.slug === slug &&
-        draft.slugTouched === slugTouched &&
-        draft.category === category &&
-        draft.rating === rating &&
-        draft.dateRead === dateRead &&
-        draft.tags === tags &&
-        draft.body === body;
-      if (isEcho) {
+      if (sameState(draft, openedWith.current)) {
         window.localStorage.removeItem(draftKey);
         return;
       }
@@ -337,35 +403,13 @@ export function RecordForm({
   // Debounced autosave of the current form state, skipped while the form still
   // holds exactly the values it opened with.
   useEffect(() => {
-    const o = openedWith.current;
-    const untouched =
-      title === o.title &&
-      author === o.author &&
-      slug === o.slug &&
-      slugTouched === o.slugTouched &&
-      category === o.category &&
-      rating === o.rating &&
-      dateRead === o.dateRead &&
-      tags === o.tags &&
-      body === o.body;
-    if (untouched) return;
+    if (sameState(current, openedWith.current)) return;
 
     if (draftTimer.current) clearTimeout(draftTimer.current);
     draftTimer.current = setTimeout(() => {
       if (typeof window === "undefined") return;
       try {
-        const draft: Draft = {
-          savedAt: Date.now(),
-          title,
-          author,
-          slug,
-          slugTouched,
-          category,
-          rating,
-          dateRead,
-          tags,
-          body,
-        };
+        const draft: Draft = { savedAt: Date.now(), ...snapshot(current) };
         window.localStorage.setItem(draftKey, JSON.stringify(draft));
       } catch {
         // ignore quota/private-mode failures
@@ -374,20 +418,42 @@ export function RecordForm({
     return () => {
       if (draftTimer.current) clearTimeout(draftTimer.current);
     };
-  }, [draftKey, title, author, slug, slugTouched, category, rating, dateRead, tags, body]);
+    // `current` is rebuilt every render; depend on its fields instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    draftKey,
+    parent,
+    bookTitle,
+    bookAuthor,
+    bookCategory,
+    bookSlug,
+    bookSlugTouched,
+    title,
+    slug,
+    slugTouched,
+    rating,
+    dateRead,
+    tags,
+    body,
+  ]);
 
   function restoreDraft() {
     if (!foundDraft) return;
-    setTitle(foundDraft.title);
-    setAuthor(foundDraft.author);
-    setSlug(foundDraft.slug);
-    setSlugTouched(foundDraft.slugTouched);
-    setCategory(foundDraft.category);
-    setRating(foundDraft.rating);
-    setDateRead(foundDraft.dateRead);
-    setTags(foundDraft.tags);
-    setBody(foundDraft.body);
-    hist.current = { stack: [foundDraft.body], index: 0 };
+    const d = snapshot(foundDraft);
+    setParent(d.parent);
+    setBookTitle(d.bookTitle);
+    setBookAuthor(d.bookAuthor);
+    setBookCategory(d.bookCategory);
+    setBookSlug(d.bookSlug);
+    setBookSlugTouched(d.bookSlugTouched);
+    setTitle(d.title);
+    setSlug(d.slug);
+    setSlugTouched(d.slugTouched);
+    setRating(d.rating);
+    setDateRead(d.dateRead);
+    setTags(d.tags);
+    setBody(d.body);
+    hist.current = { stack: [d.body], index: 0 };
     setFoundDraft(null);
   }
 
@@ -523,15 +589,20 @@ export function RecordForm({
     setBusy(true);
     setError(null);
     try {
+      const targetBookSlug = isNewBook ? bookSlug : parent;
       const res = await fetch("/api/records", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          bookSlug: targetBookSlug,
+          originalBookSlug: editBookSlug,
+          // Only honoured when the target book does not exist yet.
+          bookTitle,
+          bookAuthor,
+          bookCategory,
           slug,
           originalSlug: editSlug,
           title,
-          author,
-          category,
           rating,
           dateRead,
           tags: tags
@@ -557,7 +628,7 @@ export function RecordForm({
         }
       }
       router.refresh();
-      onDone(json.slug);
+      onDone({ bookSlug: json.bookSlug, slug: json.slug });
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -578,33 +649,117 @@ export function RecordForm({
         </div>
       )}
       <div className="rf-row">
+        <label className="rf-label" htmlFor="rf-parent">
+          親の本
+        </label>
+        <select
+          id="rf-parent"
+          className="rf-input"
+          value={parent}
+          onChange={(e) => setParent(e.target.value)}
+        >
+          <option value={NEW_BOOK}>＋ 新しい本</option>
+          {books.map((b) => (
+            <option key={b.slug} value={b.slug}>
+              {b.title}
+              {b.author ? `（${b.author}）` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {isNewBook ? (
+        <>
+          <div className="rf-row">
+            <label className="rf-label" htmlFor="rf-book-title">
+              本のタイトル
+            </label>
+            <input
+              id="rf-book-title"
+              className="rf-input"
+              value={bookTitle}
+              onChange={(e) => setBookTitle(e.target.value)}
+              placeholder="本のタイトル"
+            />
+          </div>
+          <div className="rf-grid">
+            <div className="rf-row">
+              <label className="rf-label" htmlFor="rf-book-author">
+                著者
+              </label>
+              <input
+                id="rf-book-author"
+                className="rf-input"
+                value={bookAuthor}
+                onChange={(e) => setBookAuthor(e.target.value)}
+                placeholder="著者名"
+              />
+            </div>
+            <div className="rf-row">
+              <label className="rf-label" htmlFor="rf-book-cat">
+                カテゴリ
+              </label>
+              <input
+                id="rf-book-cat"
+                className="rf-input"
+                list="rf-cats"
+                value={bookCategory}
+                onChange={(e) => setBookCategory(e.target.value)}
+                placeholder="技術書 / 小説 …"
+              />
+              <datalist id="rf-cats">
+                {categories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+          <div className="rf-row">
+            <label className="rf-label" htmlFor="rf-book-slug">
+              本の slug（フォルダ名）
+            </label>
+            <input
+              id="rf-book-slug"
+              className="rf-input"
+              value={bookSlug}
+              onChange={(e) => {
+                setBookSlugTouched(true);
+                setBookSlug(e.target.value);
+              }}
+            />
+          </div>
+        </>
+      ) : (
+        // An existing book's metadata is not editable here: the API deliberately
+        // ignores the book fields for a book that already exists, so inputs
+        // would silently do nothing.
+        <div className="rf-row">
+          <span className="rf-label">この本の情報</span>
+          {/* inline: the stylesheet is out of scope for this change */}
+          <p style={{ margin: "0.2rem 0", opacity: 0.85 }}>
+            {[selectedBook?.title, selectedBook?.author, selectedBook?.category]
+              .filter(Boolean)
+              .join(" ・ ")}
+          </p>
+        </div>
+      )}
+
+      <div className="rf-row">
         <label className="rf-label" htmlFor="rf-title">
-          タイトル
+          記事タイトル
         </label>
         <input
           id="rf-title"
           className="rf-input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="本のタイトル"
-        />
-      </div>
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="rf-author">
-          著者
-        </label>
-        <input
-          id="rf-author"
-          className="rf-input"
-          value={author}
-          onChange={(e) => setAuthor(e.target.value)}
-          placeholder="著者名"
+          placeholder="記事のタイトル"
         />
       </div>
 
       <div className="rf-row">
         <label className="rf-label" htmlFor="rf-slug">
-          slug（ファイル名）
+          記事の slug（ファイル名）
         </label>
         <input
           id="rf-slug"
@@ -619,22 +774,16 @@ export function RecordForm({
 
       <div className="rf-grid">
         <div className="rf-row">
-          <label className="rf-label" htmlFor="rf-cat">
-            カテゴリ
+          <label className="rf-label" htmlFor="rf-date">
+            読了日
           </label>
           <input
-            id="rf-cat"
+            id="rf-date"
+            type="date"
             className="rf-input"
-            list="rf-cats"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="技術書 / 小説 …"
+            value={dateRead}
+            onChange={(e) => setDateRead(e.target.value)}
           />
-          <datalist id="rf-cats">
-            {categories.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
         </div>
         <div className="rf-row">
           <label className="rf-label" htmlFor="rf-rating">
@@ -652,18 +801,6 @@ export function RecordForm({
               </option>
             ))}
           </select>
-        </div>
-        <div className="rf-row">
-          <label className="rf-label" htmlFor="rf-date">
-            読了日
-          </label>
-          <input
-            id="rf-date"
-            type="date"
-            className="rf-input"
-            value={dateRead}
-            onChange={(e) => setDateRead(e.target.value)}
-          />
         </div>
       </div>
 

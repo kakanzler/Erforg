@@ -1,4 +1,4 @@
-import type { Book } from "@/lib/books";
+import type { Article } from "@/lib/books";
 
 const WEEKDAYS = ["月", "", "水", "", "金", "", ""];
 const MONTHS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
@@ -22,22 +22,22 @@ function heatLevel(count: number, max: number): number {
 type Cell = { key: string; count: number } | null;
 
 /**
- * GitHub-style contribution grid. Cells are shaded by how many reading records
- * carry that day as their read date — more records that day = darker cell.
+ * GitHub-style contribution grid. Cells are shaded by how many articles
+ * carry that day as their read date — more articles that day = darker cell.
  */
 export function ActivityHeatmap({
-  books,
+  articles,
   year,
 }: {
-  books: Book[];
+  articles: Article[];
   year?: number;
 }) {
   const y = year ?? new Date().getFullYear();
 
   const counts = new Map<string, number>();
-  for (const b of books) {
-    if (!b.dateRead) continue;
-    const d = new Date(b.dateRead);
+  for (const a of articles) {
+    if (!a.dateRead) continue;
+    const d = new Date(a.dateRead);
     if (Number.isNaN(d.getTime()) || d.getFullYear() !== y) continue;
     const key = toKey(d);
     counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -81,7 +81,7 @@ export function ActivityHeatmap({
           ACTIVITY
         </h2>
         <span className="heatmap-total">
-          {y}年 ・ {total}冊
+          {y}年 ・ {total}記事
         </span>
       </div>
 
@@ -118,7 +118,7 @@ export function ActivityHeatmap({
                         className="hm-cell"
                         data-level={future ? 0 : heatLevel(cell.count, max)}
                         data-today={cell.key === todayIso ? "true" : undefined}
-                        title={`${cell.key} ・ ${cell.count}冊`}
+                        title={`${cell.key} ・ ${cell.count}記事`}
                       />
                     );
                   })}
