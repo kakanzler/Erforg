@@ -58,54 +58,84 @@ type Tool = {
   ph: string;
   toggle?: boolean;
 };
-const TOOLS: Tool[] = [
-  // \displaystyle draws the operator full size. \int keeps its bounds beside the
-  // sign as super/subscripts (its default); \sum and \bigcup/\bigcap stack them
-  // above and below, which is the conventional setting for each.
-  {
-    sym: "∫",
-    title: "定積分",
-    before: "$\\displaystyle\\int_{a}^{b} ",
-    after: " \\, dx$",
-    ph: "f(x)",
-  },
-  { sym: "a⁄b", title: "分数", before: "$\\frac{", after: "}{b}$", ph: "a" },
-  { sym: "√", title: "平方根", before: "$\\sqrt{", after: "}$", ph: "x" },
-  {
-    sym: "∑",
-    title: "総和",
-    before: "$\\displaystyle\\sum\\limits_{i=1}^{n} ",
-    after: "$",
-    ph: "a_i",
-  },
-  {
-    sym: "∪",
-    title: "和集合",
-    before: "$\\displaystyle\\bigcup_{i=1}^{n} ",
-    after: "$",
-    ph: "A_i",
-  },
-  {
-    sym: "∩",
-    title: "積集合",
-    before: "$\\displaystyle\\bigcap_{i=1}^{n} ",
-    after: "$",
-    ph: "A_i",
-  },
-  { sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
-  // A bare arrow, not a combining one over a letter — the mincho face has no
-  // U+20D7 and renders it as tofu.
-  { sym: "→", title: "ベクトル", before: "$\\vec{", after: "}$", ph: "a" },
-  { sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
-  { sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
-  { sym: "nΠr", title: "重複順列", before: "${}_{n}\\Pi_{k}$", after: "", ph: "" },
-  { sym: "xⁿ", title: "上付き", before: "<sup>", after: "</sup>", ph: "2" },
-  { sym: "xₙ", title: "下付き", before: "<sub>", after: "</sub>", ph: "2" },
-  { sym: "小", title: "小文字", before: "<small>", after: "</small>", ph: "テキスト" },
-  { sym: "B", title: "太字（再度で解除）", before: "**", after: "**", ph: "太字", toggle: true },
-  { sym: "I", title: "イタリック（再度で解除）", before: "*", after: "*", ph: "斜体", toggle: true },
-  { sym: "U", title: "下線（再度で解除）", before: "<u>", after: "</u>", ph: "下線", toggle: true },
-  { sym: "S", title: "取り消し線（再度で解除）", before: "~~", after: "~~", ph: "取り消し", toggle: true },
+/** A bare symbol insert like π or ∀ — no selection is wrapped. */
+function sym(s: string, title: string, tex: string): Tool {
+  return { sym: s, title, before: `$${tex}$`, after: "", ph: "" };
+}
+
+// Grouped so the (long) toolbar stays scannable; a divider is drawn between
+// groups. Order within a group is roughly by how often it gets reached for.
+const TOOL_GROUPS: Tool[][] = [
+  [
+    // \displaystyle draws the operator full size. \int keeps its bounds beside
+    // the sign as super/subscripts (its default); \sum and \bigcup/\bigcap
+    // stack them above and below, which is conventional for each.
+    {
+      sym: "∫",
+      title: "定積分",
+      before: "$\\displaystyle\\int_{a}^{b} ",
+      after: " \\, dx$",
+      ph: "f(x)",
+    },
+    { sym: "a⁄b", title: "分数", before: "$\\frac{", after: "}{b}$", ph: "a" },
+    { sym: "√", title: "平方根", before: "$\\sqrt{", after: "}$", ph: "x" },
+    {
+      sym: "∑",
+      title: "総和",
+      before: "$\\displaystyle\\sum\\limits_{i=1}^{n} ",
+      after: "$",
+      ph: "a_i",
+    },
+    {
+      sym: "∪",
+      title: "和集合",
+      before: "$\\displaystyle\\bigcup_{i=1}^{n} ",
+      after: "$",
+      ph: "A_i",
+    },
+    {
+      sym: "∩",
+      title: "積集合",
+      before: "$\\displaystyle\\bigcap_{i=1}^{n} ",
+      after: "$",
+      ph: "A_i",
+    },
+  ],
+  [
+    { sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
+    { sym: "sin", title: "sin", before: "$\\sin ", after: "$", ph: "\\theta" },
+    { sym: "cos", title: "cos", before: "$\\cos ", after: "$", ph: "\\theta" },
+    { sym: "tan", title: "tan", before: "$\\tan ", after: "$", ph: "\\theta" },
+  ],
+  [
+    sym("π", "円周率", "\\pi"),
+    sym("θ", "シータ（小）", "\\theta"),
+    sym("Θ", "シータ（大）", "\\Theta"),
+    // \varphi is the curly φ; KaTeX's \phi draws the straight-stemmed ϕ.
+    sym("φ", "ファイ", "\\varphi"),
+    // \varnothing is the round slashed circle; \emptyset draws a narrow zero.
+    sym("∅", "空集合", "\\varnothing"),
+    sym("∈", "属する", "\\in"),
+    sym("∃", "存在する", "\\exists"),
+    sym("∀", "すべての", "\\forall"),
+    // A bare arrow, not a combining one over a letter — the mincho face has no
+    // U+20D7 and renders it as tofu.
+    { sym: "→", title: "ベクトル", before: "$\\vec{", after: "}$", ph: "a" },
+  ],
+  [
+    { sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
+    { sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
+    { sym: "nΠr", title: "重複順列", before: "${}_{n}\\Pi_{k}$", after: "", ph: "" },
+  ],
+  [
+    { sym: "xⁿ", title: "上付き", before: "<sup>", after: "</sup>", ph: "2" },
+    { sym: "xₙ", title: "下付き", before: "<sub>", after: "</sub>", ph: "2" },
+    { sym: "小", title: "小文字", before: "<small>", after: "</small>", ph: "テキスト" },
+    { sym: "B", title: "太字（再度で解除）", before: "**", after: "**", ph: "太字", toggle: true },
+    { sym: "I", title: "イタリック（再度で解除）", before: "*", after: "*", ph: "斜体", toggle: true },
+    { sym: "U", title: "下線（再度で解除）", before: "<u>", after: "</u>", ph: "下線", toggle: true },
+    { sym: "S", title: "取り消し線（再度で解除）", before: "~~", after: "~~", ph: "取り消し", toggle: true },
+  ],
 ];
 
 export function RecordForm({
@@ -603,21 +633,25 @@ export function RecordForm({
 
         {!showPreview && (
           <div className="rf-toolbar">
-            {TOOLS.map((t) => (
-              <button
-                key={t.title}
-                type="button"
-                className="rf-tool"
-                title={t.title}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() =>
-                  t.toggle
-                    ? toggleWrap(t.before, t.after, t.ph)
-                    : surround(t.before, t.after, t.ph)
-                }
-              >
-                {t.sym}
-              </button>
+            {TOOL_GROUPS.map((group, gi) => (
+              <span key={gi} className="rf-tool-group">
+                {group.map((t) => (
+                  <button
+                    key={t.title}
+                    type="button"
+                    className="rf-tool"
+                    title={t.title}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() =>
+                      t.toggle
+                        ? toggleWrap(t.before, t.after, t.ph)
+                        : surround(t.before, t.after, t.ph)
+                    }
+                  >
+                    {t.sym}
+                  </button>
+                ))}
+              </span>
             ))}
             <span className="rf-tool-color">
               <input

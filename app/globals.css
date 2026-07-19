@@ -572,6 +572,20 @@ a {
   margin: 0.35rem 0;
 }
 
+/* Keeps each group's buttons together when the toolbar wraps, and draws a
+   divider between groups. */
+.rf-tool-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rf-tool-group + .rf-tool-group {
+  padding-left: 6px;
+  border-left: 1px solid var(--rule);
+  margin-left: 2px;
+}
+
 .rf-tool {
   font-family: inherit;
   font-size: 0.85rem;
