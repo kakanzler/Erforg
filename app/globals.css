@@ -565,25 +565,46 @@ a {
   padding: 0;
 }
 
+/* Math tools on the left, ordinary text formatting pushed to the right edge, so
+   the two kinds of button are never confused for one another. */
 .rf-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin: 0.35rem 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem 1.4rem;
+  margin: 0.35rem 0 0.5rem;
 }
 
-/* Keeps each group's buttons together when the toolbar wraps, and draws a
-   divider between groups. */
+.rf-tool-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.1rem;
+}
+
+.rf-tool-section-text {
+  margin-left: auto;
+}
+
+/* A labelled cluster; the label names the category in small caps-ish type. */
 .rf-tool-group {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rf-tool-group-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+  line-height: 1;
+  padding-left: 1px;
+}
+
+.rf-tool-group-items {
+  display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-.rf-tool-group + .rf-tool-group {
-  padding-left: 6px;
-  border-left: 1px solid var(--rule);
-  margin-left: 2px;
 }
 
 .rf-tool {

@@ -63,80 +63,144 @@ function sym(s: string, title: string, tex: string): Tool {
   return { sym: s, title, before: `$${tex}$`, after: "", ph: "" };
 }
 
-// Grouped so the (long) toolbar stays scannable; a divider is drawn between
-// groups. Order within a group is roughly by how often it gets reached for.
-const TOOL_GROUPS: Tool[][] = [
-  [
-    // \displaystyle draws the operator full size. \int keeps its bounds beside
-    // the sign as super/subscripts (its default); \sum and \bigcup/\bigcap
-    // stack them above and below, which is conventional for each.
-    {
-      sym: "∫",
-      title: "定積分",
-      before: "$\\displaystyle\\int_{a}^{b} ",
-      after: " \\, dx$",
-      ph: "f(x)",
-    },
-    { sym: "a⁄b", title: "分数", before: "$\\frac{", after: "}{b}$", ph: "a" },
-    { sym: "√", title: "平方根", before: "$\\sqrt{", after: "}$", ph: "x" },
-    {
-      sym: "∑",
-      title: "総和",
-      before: "$\\displaystyle\\sum\\limits_{i=1}^{n} ",
-      after: "$",
-      ph: "a_i",
-    },
-    {
-      sym: "∪",
-      title: "和集合",
-      before: "$\\displaystyle\\bigcup_{i=1}^{n} ",
-      after: "$",
-      ph: "A_i",
-    },
-    {
-      sym: "∩",
-      title: "積集合",
-      before: "$\\displaystyle\\bigcap_{i=1}^{n} ",
-      after: "$",
-      ph: "A_i",
-    },
-  ],
-  [
-    { sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
-    { sym: "sin", title: "sin", before: "$\\sin ", after: "$", ph: "\\theta" },
-    { sym: "cos", title: "cos", before: "$\\cos ", after: "$", ph: "\\theta" },
-    { sym: "tan", title: "tan", before: "$\\tan ", after: "$", ph: "\\theta" },
-  ],
-  [
-    sym("π", "円周率", "\\pi"),
-    sym("θ", "シータ（小）", "\\theta"),
-    sym("Θ", "シータ（大）", "\\Theta"),
-    // \varphi is the curly φ; KaTeX's \phi draws the straight-stemmed ϕ.
-    sym("φ", "ファイ", "\\varphi"),
-    // \varnothing is the round slashed circle; \emptyset draws a narrow zero.
-    sym("∅", "空集合", "\\varnothing"),
-    sym("∈", "属する", "\\in"),
-    sym("∃", "存在する", "\\exists"),
-    sym("∀", "すべての", "\\forall"),
-    // A bare arrow, not a combining one over a letter — the mincho face has no
-    // U+20D7 and renders it as tofu.
-    { sym: "→", title: "ベクトル", before: "$\\vec{", after: "}$", ph: "a" },
-  ],
-  [
-    { sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
-    { sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
-    { sym: "nΠr", title: "重複順列", before: "${}_{n}\\Pi_{k}$", after: "", ph: "" },
-  ],
-  [
-    { sym: "xⁿ", title: "上付き", before: "<sup>", after: "</sup>", ph: "2" },
-    { sym: "xₙ", title: "下付き", before: "<sub>", after: "</sub>", ph: "2" },
+type ToolGroup = { label: string; tools: Tool[] };
+
+// Greek is listed in alphabetical order so a letter can be found by position
+// rather than by reading every glyph. Omicron is omitted deliberately: it is
+// typographically identical to a Latin o and TeX has no distinct command for it.
+const GREEK_LOWER: Tool[] = [
+  sym("α", "アルファ", "\\alpha"),
+  sym("β", "ベータ", "\\beta"),
+  sym("γ", "ガンマ", "\\gamma"),
+  sym("δ", "デルタ", "\\delta"),
+  sym("ε", "イプシロン", "\\varepsilon"),
+  sym("ζ", "ゼータ", "\\zeta"),
+  sym("η", "エータ", "\\eta"),
+  sym("θ", "シータ", "\\theta"),
+  sym("ι", "イオタ", "\\iota"),
+  sym("κ", "カッパ", "\\kappa"),
+  sym("λ", "ラムダ", "\\lambda"),
+  sym("μ", "ミュー", "\\mu"),
+  sym("ν", "ニュー", "\\nu"),
+  sym("ξ", "クシー", "\\xi"),
+  sym("π", "パイ", "\\pi"),
+  sym("ρ", "ロー", "\\rho"),
+  sym("σ", "シグマ", "\\sigma"),
+  sym("τ", "タウ", "\\tau"),
+  sym("υ", "ウプシロン", "\\upsilon"),
+  // \varphi is the curly φ; KaTeX's \phi draws the straight-stemmed ϕ.
+  sym("φ", "ファイ", "\\varphi"),
+  sym("χ", "カイ", "\\chi"),
+  sym("ψ", "プサイ", "\\psi"),
+  sym("ω", "オメガ", "\\omega"),
+];
+
+// Only the capitals that differ from a Latin letter — the rest are typed直接.
+const GREEK_UPPER: Tool[] = [
+  sym("Γ", "ガンマ（大）", "\\Gamma"),
+  sym("Δ", "デルタ（大）", "\\Delta"),
+  sym("Θ", "シータ（大）", "\\Theta"),
+  sym("Λ", "ラムダ（大）", "\\Lambda"),
+  sym("Ξ", "クシー（大）", "\\Xi"),
+  sym("Π", "パイ（大）", "\\Pi"),
+  sym("Σ", "シグマ（大）", "\\Sigma"),
+  sym("Υ", "ウプシロン（大）", "\\Upsilon"),
+  sym("Φ", "ファイ（大）", "\\Phi"),
+  sym("Ψ", "プサイ（大）", "\\Psi"),
+  sym("Ω", "オメガ（大）", "\\Omega"),
+];
+
+const MATH_GROUPS: ToolGroup[] = [
+  {
+    label: "演算",
+    tools: [
+      // \displaystyle draws the operator full size. \int keeps its bounds beside
+      // the sign as super/subscripts (its default); \sum and \bigcup/\bigcap
+      // stack them above and below, which is conventional for each.
+      {
+        sym: "∫",
+        title: "定積分",
+        before: "$\\displaystyle\\int_{a}^{b} ",
+        after: " \\, dx$",
+        ph: "f(x)",
+      },
+      { sym: "a⁄b", title: "分数", before: "$\\frac{", after: "}{b}$", ph: "a" },
+      { sym: "√", title: "平方根", before: "$\\sqrt{", after: "}$", ph: "x" },
+      {
+        sym: "∑",
+        title: "総和",
+        before: "$\\displaystyle\\sum\\limits_{i=1}^{n} ",
+        after: "$",
+        ph: "a_i",
+      },
+      // A bare arrow, not a combining one over a letter — the mincho face has
+      // no U+20D7 and renders it as tofu.
+      { sym: "→", title: "ベクトル", before: "$\\vec{", after: "}$", ph: "a" },
+      { sym: "xⁿ", title: "上付き", before: "<sup>", after: "</sup>", ph: "2" },
+      { sym: "xₙ", title: "下付き", before: "<sub>", after: "</sub>", ph: "2" },
+    ],
+  },
+  {
+    label: "関数",
+    tools: [
+      { sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
+      { sym: "sin", title: "sin", before: "$\\sin ", after: "$", ph: "\\theta" },
+      { sym: "cos", title: "cos", before: "$\\cos ", after: "$", ph: "\\theta" },
+      { sym: "tan", title: "tan", before: "$\\tan ", after: "$", ph: "\\theta" },
+    ],
+  },
+  {
+    label: "集合",
+    tools: [
+      // \mathbb gives the double-struck letters used for the number systems.
+      sym("ℕ", "自然数全体", "\\mathbb{N}"),
+      sym("ℤ", "整数全体", "\\mathbb{Z}"),
+      sym("ℚ", "有理数全体", "\\mathbb{Q}"),
+      sym("ℝ", "実数全体", "\\mathbb{R}"),
+      sym("ℂ", "複素数全体", "\\mathbb{C}"),
+      {
+        sym: "∪",
+        title: "和集合",
+        before: "$\\displaystyle\\bigcup_{i=1}^{n} ",
+        after: "$",
+        ph: "A_i",
+      },
+      {
+        sym: "∩",
+        title: "積集合",
+        before: "$\\displaystyle\\bigcap_{i=1}^{n} ",
+        after: "$",
+        ph: "A_i",
+      },
+      // \varnothing is the round slashed circle; \emptyset draws a narrow zero.
+      sym("∅", "空集合", "\\varnothing"),
+      sym("∈", "属する", "\\in"),
+      sym("⊂", "部分集合", "\\subset"),
+      sym("∃", "存在する", "\\exists"),
+      sym("∀", "すべての", "\\forall"),
+    ],
+  },
+  { label: "ギリシャ文字", tools: [...GREEK_LOWER, ...GREEK_UPPER] },
+  {
+    label: "組合せ",
+    tools: [
+      { sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
+      { sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
+      { sym: "nΠr", title: "重複順列", before: "${}_{n}\\Pi_{k}$", after: "", ph: "" },
+    ],
+  },
+];
+
+const TEXT_GROUP: ToolGroup = {
+  label: "書式",
+  tools: [
     { sym: "小", title: "小文字", before: "<small>", after: "</small>", ph: "テキスト" },
     { sym: "B", title: "太字（再度で解除）", before: "**", after: "**", ph: "太字", toggle: true },
     { sym: "I", title: "イタリック（再度で解除）", before: "*", after: "*", ph: "斜体", toggle: true },
     { sym: "U", title: "下線（再度で解除）", before: "<u>", after: "</u>", ph: "下線", toggle: true },
     { sym: "S", title: "取り消し線（再度で解除）", before: "~~", after: "~~", ph: "取り消し", toggle: true },
   ],
-];
+};
 
 export function RecordForm({
   initialTitle = "",
@@ -633,46 +697,75 @@ export function RecordForm({
 
         {!showPreview && (
           <div className="rf-toolbar">
-            {TOOL_GROUPS.map((group, gi) => (
-              <span key={gi} className="rf-tool-group">
-                {group.map((t) => (
-                  <button
-                    key={t.title}
-                    type="button"
-                    className="rf-tool"
-                    title={t.title}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() =>
-                      t.toggle
-                        ? toggleWrap(t.before, t.after, t.ph)
-                        : surround(t.before, t.after, t.ph)
-                    }
-                  >
-                    {t.sym}
-                  </button>
-                ))}
-              </span>
-            ))}
-            <span className="rf-tool-color">
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                title="文字色を選択"
-                aria-label="文字色"
-              />
-              <button
-                type="button"
-                className="rf-tool"
-                title="文字色"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() =>
-                  surround(`<span style="color:${color}">`, "</span>", "テキスト")
-                }
-              >
-                A
-              </button>
-            </span>
+            <div className="rf-tool-section">
+              {MATH_GROUPS.map((group) => (
+                <div key={group.label} className="rf-tool-group">
+                  <span className="rf-tool-group-label">{group.label}</span>
+                  <div className="rf-tool-group-items">
+                    {group.tools.map((t) => (
+                      <button
+                        key={t.title}
+                        type="button"
+                        className="rf-tool"
+                        title={t.title}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() =>
+                          t.toggle
+                            ? toggleWrap(t.before, t.after, t.ph)
+                            : surround(t.before, t.after, t.ph)
+                        }
+                      >
+                        {t.sym}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rf-tool-section rf-tool-section-text">
+              <div className="rf-tool-group">
+                <span className="rf-tool-group-label">{TEXT_GROUP.label}</span>
+                <div className="rf-tool-group-items">
+                  {TEXT_GROUP.tools.map((t) => (
+                    <button
+                      key={t.title}
+                      type="button"
+                      className="rf-tool"
+                      title={t.title}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() =>
+                        t.toggle
+                          ? toggleWrap(t.before, t.after, t.ph)
+                          : surround(t.before, t.after, t.ph)
+                      }
+                    >
+                      {t.sym}
+                    </button>
+                  ))}
+                  <span className="rf-tool-color">
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                      title="文字色を選択"
+                      aria-label="文字色"
+                    />
+                    <button
+                      type="button"
+                      className="rf-tool"
+                      title="文字色"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() =>
+                        surround(`<span style="color:${color}">`, "</span>", "テキスト")
+                      }
+                    >
+                      A
+                    </button>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
