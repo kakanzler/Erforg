@@ -12,76 +12,90 @@ type Tool = {
   after: string;
   ph: string;
   toggle?: boolean;
+  /**
+   * Second keystroke of the chord, pressed after `Alt+<group prefix>`. A single
+   * lowercase letter, or an uppercase letter meaning "with Shift". Matched
+   * case-sensitively, so `g` and `G` are different tools.
+   */
+  key: string;
+  /** The one tool whose `before` depends on the live colour picker. */
+  useColor?: boolean;
 };
 /** A bare symbol insert like π or ∀ — no selection is wrapped. */
-function sym(s: string, title: string, tex: string): Tool {
-  return { sym: s, title, before: `$${tex}$`, after: "", ph: "" };
+function sym(key: string, s: string, title: string, tex: string): Tool {
+  return { key, sym: s, title, before: `$${tex}$`, after: "", ph: "" };
 }
 
-type ToolGroup = { label: string; tools: Tool[] };
+/** `prefix` is the letter pressed with Alt to arm this group. */
+type ToolGroup = { label: string; prefix: string; tools: Tool[] };
 
 // Greek is listed in alphabetical order so a letter can be found by position
 // rather than by reading every glyph. Omicron is omitted deliberately: it is
 // typographically identical to a Latin o and TeX has no distinct command for it.
+// Chord keys follow the conventional Latin correspondence (α→a, θ→q, ω→w), and
+// the capitals take the same letter with Shift.
 const GREEK_LOWER: Tool[] = [
-  sym("α", "アルファ", "\\alpha"),
-  sym("β", "ベータ", "\\beta"),
-  sym("γ", "ガンマ", "\\gamma"),
-  sym("δ", "デルタ", "\\delta"),
-  sym("ε", "イプシロン", "\\varepsilon"),
-  sym("ζ", "ゼータ", "\\zeta"),
-  sym("η", "エータ", "\\eta"),
-  sym("θ", "シータ", "\\theta"),
-  sym("ι", "イオタ", "\\iota"),
-  sym("κ", "カッパ", "\\kappa"),
-  sym("λ", "ラムダ", "\\lambda"),
-  sym("μ", "ミュー", "\\mu"),
-  sym("ν", "ニュー", "\\nu"),
-  sym("ξ", "クシー", "\\xi"),
-  sym("π", "パイ", "\\pi"),
-  sym("ρ", "ロー", "\\rho"),
-  sym("σ", "シグマ", "\\sigma"),
-  sym("τ", "タウ", "\\tau"),
-  sym("υ", "ウプシロン", "\\upsilon"),
+  sym("a", "α", "アルファ", "\\alpha"),
+  sym("b", "β", "ベータ", "\\beta"),
+  sym("g", "γ", "ガンマ", "\\gamma"),
+  sym("d", "δ", "デルタ", "\\delta"),
+  sym("e", "ε", "イプシロン", "\\varepsilon"),
+  sym("z", "ζ", "ゼータ", "\\zeta"),
+  sym("h", "η", "エータ", "\\eta"),
+  sym("q", "θ", "シータ", "\\theta"),
+  sym("i", "ι", "イオタ", "\\iota"),
+  sym("k", "κ", "カッパ", "\\kappa"),
+  sym("l", "λ", "ラムダ", "\\lambda"),
+  sym("m", "μ", "ミュー", "\\mu"),
+  sym("n", "ν", "ニュー", "\\nu"),
+  sym("x", "ξ", "クシー", "\\xi"),
+  sym("p", "π", "パイ", "\\pi"),
+  sym("r", "ρ", "ロー", "\\rho"),
+  sym("s", "σ", "シグマ", "\\sigma"),
+  sym("t", "τ", "タウ", "\\tau"),
+  sym("u", "υ", "ウプシロン", "\\upsilon"),
   // \varphi is the curly φ; KaTeX's \phi draws the straight-stemmed ϕ.
-  sym("φ", "ファイ", "\\varphi"),
-  sym("χ", "カイ", "\\chi"),
-  sym("ψ", "プサイ", "\\psi"),
-  sym("ω", "オメガ", "\\omega"),
+  sym("f", "φ", "ファイ", "\\varphi"),
+  sym("c", "χ", "カイ", "\\chi"),
+  sym("y", "ψ", "プサイ", "\\psi"),
+  sym("w", "ω", "オメガ", "\\omega"),
 ];
 
 // Only the capitals that differ from a Latin letter — the rest are typed直接.
 const GREEK_UPPER: Tool[] = [
-  sym("Γ", "ガンマ（大）", "\\Gamma"),
-  sym("Δ", "デルタ（大）", "\\Delta"),
-  sym("Θ", "シータ（大）", "\\Theta"),
-  sym("Λ", "ラムダ（大）", "\\Lambda"),
-  sym("Ξ", "クシー（大）", "\\Xi"),
-  sym("Π", "パイ（大）", "\\Pi"),
-  sym("Σ", "シグマ（大）", "\\Sigma"),
-  sym("Υ", "ウプシロン（大）", "\\Upsilon"),
-  sym("Φ", "ファイ（大）", "\\Phi"),
-  sym("Ψ", "プサイ（大）", "\\Psi"),
-  sym("Ω", "オメガ（大）", "\\Omega"),
+  sym("G", "Γ", "ガンマ（大）", "\\Gamma"),
+  sym("D", "Δ", "デルタ（大）", "\\Delta"),
+  sym("Q", "Θ", "シータ（大）", "\\Theta"),
+  sym("L", "Λ", "ラムダ（大）", "\\Lambda"),
+  sym("X", "Ξ", "クシー（大）", "\\Xi"),
+  sym("P", "Π", "パイ（大）", "\\Pi"),
+  sym("S", "Σ", "シグマ（大）", "\\Sigma"),
+  sym("U", "Υ", "ウプシロン（大）", "\\Upsilon"),
+  sym("F", "Φ", "ファイ（大）", "\\Phi"),
+  sym("Y", "Ψ", "プサイ（大）", "\\Psi"),
+  sym("W", "Ω", "オメガ（大）", "\\Omega"),
 ];
 
 const MATH_GROUPS: ToolGroup[] = [
   {
     label: "演算",
+    prefix: "o",
     tools: [
       // \displaystyle draws the operator full size. \int keeps its bounds beside
       // the sign as super/subscripts (its default); \sum and \bigcup/\bigcap
       // stack them above and below, which is conventional for each.
       {
+        key: "i",
         sym: "∫",
         title: "定積分",
         before: "$\\displaystyle\\int_{a}^{b} ",
         after: " \\, dx$",
         ph: "f(x)",
       },
-      { sym: "a⁄b", title: "分数", before: "$\\frac{", after: "}{b}$", ph: "a" },
-      { sym: "√", title: "平方根", before: "$\\sqrt{", after: "}$", ph: "x" },
+      { key: "f", sym: "a⁄b", title: "分数", before: "$\\frac{", after: "}{b}$", ph: "a" },
+      { key: "r", sym: "√", title: "平方根", before: "$\\sqrt{", after: "}$", ph: "x" },
       {
+        key: "s",
         sym: "∑",
         title: "総和",
         before: "$\\displaystyle\\sum\\limits_{i=1}^{n} ",
@@ -90,30 +104,34 @@ const MATH_GROUPS: ToolGroup[] = [
       },
       // A bare arrow, not a combining one over a letter — the mincho face has
       // no U+20D7 and renders it as tofu.
-      { sym: "→", title: "ベクトル", before: "$\\vec{", after: "}$", ph: "a" },
-      { sym: "xⁿ", title: "上付き", before: "<sup>", after: "</sup>", ph: "2" },
-      { sym: "xₙ", title: "下付き", before: "<sub>", after: "</sub>", ph: "2" },
+      { key: "v", sym: "→", title: "ベクトル", before: "$\\vec{", after: "}$", ph: "a" },
+      { key: "u", sym: "xⁿ", title: "上付き", before: "<sup>", after: "</sup>", ph: "2" },
+      { key: "d", sym: "xₙ", title: "下付き", before: "<sub>", after: "</sub>", ph: "2" },
     ],
   },
   {
     label: "関数",
+    // "k" and not "f": Chrome reserves Alt+F for its own menu.
+    prefix: "k",
     tools: [
-      { sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
-      { sym: "sin", title: "sin", before: "$\\sin ", after: "$", ph: "\\theta" },
-      { sym: "cos", title: "cos", before: "$\\cos ", after: "$", ph: "\\theta" },
-      { sym: "tan", title: "tan", before: "$\\tan ", after: "$", ph: "\\theta" },
+      { key: "l", sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
+      { key: "s", sym: "sin", title: "sin", before: "$\\sin ", after: "$", ph: "\\theta" },
+      { key: "c", sym: "cos", title: "cos", before: "$\\cos ", after: "$", ph: "\\theta" },
+      { key: "t", sym: "tan", title: "tan", before: "$\\tan ", after: "$", ph: "\\theta" },
     ],
   },
   {
     label: "集合",
+    prefix: "s",
     tools: [
       // \mathbb gives the double-struck letters used for the number systems.
-      sym("ℕ", "自然数全体", "\\mathbb{N}"),
-      sym("ℤ", "整数全体", "\\mathbb{Z}"),
-      sym("ℚ", "有理数全体", "\\mathbb{Q}"),
-      sym("ℝ", "実数全体", "\\mathbb{R}"),
-      sym("ℂ", "複素数全体", "\\mathbb{C}"),
+      sym("n", "ℕ", "自然数全体", "\\mathbb{N}"),
+      sym("z", "ℤ", "整数全体", "\\mathbb{Z}"),
+      sym("q", "ℚ", "有理数全体", "\\mathbb{Q}"),
+      sym("r", "ℝ", "実数全体", "\\mathbb{R}"),
+      sym("c", "ℂ", "複素数全体", "\\mathbb{C}"),
       {
+        key: "u",
         sym: "∪",
         title: "和集合",
         before: "$\\displaystyle\\bigcup_{i=1}^{n} ",
@@ -121,6 +139,7 @@ const MATH_GROUPS: ToolGroup[] = [
         ph: "A_i",
       },
       {
+        key: "i",
         sym: "∩",
         title: "積集合",
         before: "$\\displaystyle\\bigcap_{i=1}^{n} ",
@@ -128,34 +147,94 @@ const MATH_GROUPS: ToolGroup[] = [
         ph: "A_i",
       },
       // \varnothing is the round slashed circle; \emptyset draws a narrow zero.
-      sym("∅", "空集合", "\\varnothing"),
-      sym("∈", "属する", "\\in"),
-      sym("⊂", "部分集合", "\\subset"),
-      sym("∃", "存在する", "\\exists"),
-      sym("∀", "すべての", "\\forall"),
+      sym("e", "∅", "空集合", "\\varnothing"),
+      sym("m", "∈", "属する", "\\in"),
+      sym("b", "⊂", "部分集合", "\\subset"),
+      sym("x", "∃", "存在する", "\\exists"),
+      sym("a", "∀", "すべての", "\\forall"),
     ],
   },
-  { label: "ギリシャ文字", tools: [...GREEK_LOWER, ...GREEK_UPPER] },
+  { label: "ギリシャ文字", prefix: "g", tools: [...GREEK_LOWER, ...GREEK_UPPER] },
   {
     label: "組合せ",
+    prefix: "c",
     tools: [
-      { sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
-      { sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
-      { sym: "nΠr", title: "重複順列", before: "${}_{n}\\Pi_{k}$", after: "", ph: "" },
+      { key: "c", sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
+      { key: "h", sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
+      { key: "p", sym: "nΠr", title: "重複順列", before: "${}_{n}\\Pi_{k}$", after: "", ph: "" },
     ],
   },
 ];
 
 const TEXT_GROUP: ToolGroup = {
   label: "書式",
+  prefix: "t",
   tools: [
-    { sym: "小", title: "小文字", before: "<small>", after: "</small>", ph: "テキスト" },
-    { sym: "B", title: "太字（再度で解除）", before: "**", after: "**", ph: "太字", toggle: true },
-    { sym: "I", title: "イタリック（再度で解除）", before: "*", after: "*", ph: "斜体", toggle: true },
-    { sym: "U", title: "下線（再度で解除）", before: "<u>", after: "</u>", ph: "下線", toggle: true },
-    { sym: "S", title: "取り消し線（再度で解除）", before: "~~", after: "~~", ph: "取り消し", toggle: true },
+    { key: "m", sym: "小", title: "小文字", before: "<small>", after: "</small>", ph: "テキスト" },
+    { key: "b", sym: "B", title: "太字（再度で解除）", before: "**", after: "**", ph: "太字", toggle: true },
+    { key: "i", sym: "I", title: "イタリック（再度で解除）", before: "*", after: "*", ph: "斜体", toggle: true },
+    { key: "u", sym: "U", title: "下線（再度で解除）", before: "<u>", after: "</u>", ph: "下線", toggle: true },
+    { key: "s", sym: "S", title: "取り消し線（再度で解除）", before: "~~", after: "~~", ph: "取り消し", toggle: true },
+    // Rendered apart from the others (beside the colour picker), but it belongs
+    // to the group so it takes part in the chord map and the uniqueness check.
+    { key: "c", sym: "A", title: "文字色", before: "", after: "</span>", ph: "テキスト", useColor: true },
   ],
 };
+
+const ALL_GROUPS: ToolGroup[] = [...MATH_GROUPS, TEXT_GROUP];
+
+// A duplicate key would silently shadow a button, and a duplicate prefix would
+// shadow a whole group — fail loudly at module load instead.
+(function assertChordsUnique() {
+  const prefixes = new Set<string>();
+  for (const g of ALL_GROUPS) {
+    if (prefixes.has(g.prefix)) {
+      throw new Error(`MarkdownEditor: duplicate group prefix "${g.prefix}"`);
+    }
+    prefixes.add(g.prefix);
+    const keys = new Set<string>();
+    for (const t of g.tools) {
+      if (keys.has(t.key)) {
+        throw new Error(
+          `MarkdownEditor: duplicate chord key "${t.key}" in group "${g.label}"`
+        );
+      }
+      keys.add(t.key);
+    }
+  }
+})();
+
+/** How long an armed chord waits for its second keystroke. */
+const CHORD_TIMEOUT_MS = 3000;
+
+/** Keydowns that are only a modifier: Shift+W must not disarm on the Shift. */
+const MODIFIER_KEYS = new Set([
+  "Shift",
+  "Control",
+  "Alt",
+  "Meta",
+  "CapsLock",
+  "AltGraph",
+]);
+
+/** "Alt+O → S" / "Alt+G → Shift+W" — the shift form marks an uppercase key. */
+function chordHint(prefix: string, key: string): string {
+  const shifted = key !== key.toLowerCase();
+  return `Alt+${prefix.toUpperCase()} → ${shifted ? "Shift+" : ""}${key.toUpperCase()}`;
+}
+
+function toolTitle(group: ToolGroup, t: Tool): string {
+  return `${t.title}（${chordHint(group.prefix, t.key)}）`;
+}
+
+/**
+ * With Alt held, some layouts report a composed character in `key`; the
+ * physical `code` still names the letter, so prefer it for the prefix step.
+ */
+function prefixLetter(e: React.KeyboardEvent): string {
+  const m = /^Key([A-Z])$/.exec(e.code);
+  return m ? m[1].toLowerCase() : e.key.toLowerCase();
+}
 
 /**
  * The shared authoring editor: the math / text toolbar, its own undo–redo
@@ -175,9 +254,12 @@ export function MarkdownEditor({
 }) {
   const [color, setColor] = useState("#b3271e");
   const [showPreview, setShowPreview] = useState(false);
+  // The group armed by Alt+<prefix>, waiting for its second keystroke.
+  const [armed, setArmed] = useState<ToolGroup | null>(null);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const pendingSel = useRef<[number, number] | null>(null);
+  const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Undo/redo history (covers toolbar insertions, which the native textarea
   // undo stack misses). Typing is coalesced via a short debounce.
@@ -269,7 +351,75 @@ export function MarkdownEditor({
     }
   }
 
+  function disarm() {
+    if (chordTimer.current) {
+      clearTimeout(chordTimer.current);
+      chordTimer.current = null;
+    }
+    setArmed(null);
+  }
+
+  function arm(group: ToolGroup) {
+    if (chordTimer.current) clearTimeout(chordTimer.current);
+    chordTimer.current = setTimeout(() => {
+      chordTimer.current = null;
+      setArmed(null);
+    }, CHORD_TIMEOUT_MS);
+    setArmed(group);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (chordTimer.current) clearTimeout(chordTimer.current);
+    };
+  }, []);
+
+  /** Run a tool exactly as clicking its button does. */
+  function runTool(t: Tool) {
+    const before = t.useColor ? `<span style="color:${color}">` : t.before;
+    if (t.toggle) toggleWrap(before, t.after, t.ph);
+    else surround(before, t.after, t.ph);
+  }
+
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Never take a keystroke away from a Japanese IME.
+    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
+
+    // Step 1 — Alt+<prefix> arms (or re-arms) a group.
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const group = ALL_GROUPS.find((g) => g.prefix === prefixLetter(e));
+      if (group) {
+        e.preventDefault();
+        arm(group);
+        return;
+      }
+    }
+
+    // Step 2 — the next real keystroke either fires a tool or disarms.
+    if (armed) {
+      if (MODIFIER_KEYS.has(e.key)) return; // Shift of a Shift+W chord
+      const group = armed;
+      disarm();
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Case-sensitive, so "g" and "G" pick different tools.
+        const t = group.tools.find((x) => x.key === e.key);
+        if (t) {
+          e.preventDefault();
+          runTool(t);
+          return;
+        }
+        if (e.key === "Escape") {
+          // Cancel the chord only. The editor may sit inside a Modal that
+          // closes on Escape, and losing the whole form here would be brutal.
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        return;
+      }
+      // A Ctrl/Meta combination falls through to undo/redo below.
+    }
+
     const mod = e.ctrlKey || e.metaKey;
     if (mod && (e.key === "z" || e.key === "Z")) {
       e.preventDefault();
@@ -330,7 +480,7 @@ export function MarkdownEditor({
       <div className="rf-bodyhead">
         <label className="rf-label" htmlFor={id}>
           本文（Markdown ・ 数式は $…$ ・ 図は ```mermaid ・ Ctrl+Z /
-          Ctrl+Shift+Z）
+          Ctrl+Shift+Z ・ Alt+キーで記号グループ）
         </label>
         <button
           type="button"
@@ -343,23 +493,26 @@ export function MarkdownEditor({
 
       {!showPreview && (
         <div className="rf-toolbar">
+          {/* Absolutely positioned, so arming a chord never reflows the toolbar. */}
+          <span className="rf-chord" role="status" aria-live="polite">
+            {armed ? `${armed.label}…` : ""}
+          </span>
+
           <div className="rf-tool-section">
             {MATH_GROUPS.map((group) => (
               <div key={group.label} className="rf-tool-group">
-                <span className="rf-tool-group-label">{group.label}</span>
+                <span className="rf-tool-group-label">
+                  {group.label} (Alt+{group.prefix.toUpperCase()})
+                </span>
                 <div className="rf-tool-group-items">
                   {group.tools.map((t) => (
                     <button
                       key={t.title}
                       type="button"
                       className="rf-tool"
-                      title={t.title}
+                      title={toolTitle(group, t)}
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() =>
-                        t.toggle
-                          ? toggleWrap(t.before, t.after, t.ph)
-                          : surround(t.before, t.after, t.ph)
-                      }
+                      onClick={() => runTool(t)}
                     >
                       {t.sym}
                     </button>
@@ -371,24 +524,25 @@ export function MarkdownEditor({
 
           <div className="rf-tool-section rf-tool-section-text">
             <div className="rf-tool-group">
-              <span className="rf-tool-group-label">{TEXT_GROUP.label}</span>
+              <span className="rf-tool-group-label">
+                {TEXT_GROUP.label} (Alt+{TEXT_GROUP.prefix.toUpperCase()})
+              </span>
               <div className="rf-tool-group-items">
-                {TEXT_GROUP.tools.map((t) => (
-                  <button
-                    key={t.title}
-                    type="button"
-                    className="rf-tool"
-                    title={t.title}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() =>
-                      t.toggle
-                        ? toggleWrap(t.before, t.after, t.ph)
-                        : surround(t.before, t.after, t.ph)
-                    }
-                  >
-                    {t.sym}
-                  </button>
-                ))}
+                {/* The colour tool renders below, beside its picker. */}
+                {TEXT_GROUP.tools
+                  .filter((t) => !t.useColor)
+                  .map((t) => (
+                    <button
+                      key={t.title}
+                      type="button"
+                      className="rf-tool"
+                      title={toolTitle(TEXT_GROUP, t)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => runTool(t)}
+                    >
+                      {t.sym}
+                    </button>
+                  ))}
                 <span className="rf-tool-color">
                   <input
                     type="color"
@@ -397,17 +551,20 @@ export function MarkdownEditor({
                     title="文字色を選択"
                     aria-label="文字色"
                   />
-                  <button
-                    type="button"
-                    className="rf-tool"
-                    title="文字色"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() =>
-                      surround(`<span style="color:${color}">`, "</span>", "テキスト")
-                    }
-                  >
-                    A
-                  </button>
+                  {TEXT_GROUP.tools
+                    .filter((t) => t.useColor)
+                    .map((t) => (
+                      <button
+                        key={t.title}
+                        type="button"
+                        className="rf-tool"
+                        title={toolTitle(TEXT_GROUP, t)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => runTool(t)}
+                      >
+                        {t.sym}
+                      </button>
+                    ))}
                 </span>
               </div>
             </div>
@@ -427,6 +584,7 @@ export function MarkdownEditor({
           value={value}
           onChange={(e) => onBodyChange(e.target.value)}
           onKeyDown={onKeyDown}
+          onBlur={disarm}
           rows={14}
         />
       )}

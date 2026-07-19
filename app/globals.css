@@ -1021,12 +1021,30 @@ button.chip {
 /* Math tools on the left, ordinary text formatting pushed to the right edge, so
    the two kinds of button are never confused for one another. */
 .rf-toolbar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.9rem 1.4rem;
   margin: 0.35rem 0 0.5rem;
+  /* Standing room for the chord indicator, always reserved so arming a chord
+     never reflows the buttons. */
+  padding-bottom: 1rem;
+}
+
+/* "ギリシャ文字…" while a chord waits for its second key. Absolutely placed in
+   the reserved band along the toolbar's bottom edge. */
+.rf-chord {
+  position: absolute;
+  left: 1px;
+  bottom: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  color: var(--accent);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .rf-tool-section {
