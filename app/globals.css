@@ -87,6 +87,11 @@ a {
   margin: 0.5rem 0 2rem;
 }
 
+.edit-record {
+  text-align: right;
+  margin: 0.4rem 0 1rem;
+}
+
 .add-record-btn {
   font-family: inherit;
   font-size: 0.9rem;

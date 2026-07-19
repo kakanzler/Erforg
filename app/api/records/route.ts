@@ -11,6 +11,8 @@ const ENABLED = process.env.NODE_ENV !== "production";
 
 type Payload = {
   slug?: string;
+  /** 編集時のみ。リネームを検出するための編集前 slug。 */
+  originalSlug?: string;
   title?: string;
   author?: string;
   category?: string;
@@ -27,6 +29,37 @@ function y(v: string): string {
   // JSON string literals are valid YAML double-quoted scalars — safe for any
   // title/author containing :, [], quotes, slashes, etc.
   return JSON.stringify(v ?? "");
+}
+
+/** True when the slug would escape BOOKS_DIR or produce an illegal filename. */
+function badSlug(slug: string): boolean {
+  return /[\\/:*?"<>|]/.test(slug) || slug.includes("..");
+}
+
+/**
+ * Build the full markdown file contents (frontmatter + body).
+ * Shared by POST and PUT so the two can never drift.
+ */
+function buildRecord(data: Payload, title: string): string {
+  const tags = Array.isArray(data.tags) ? data.tags.filter(Boolean) : [];
+  const rating = Number.isFinite(data.rating)
+    ? Math.max(0, Math.min(5, Number(data.rating)))
+    : 0;
+  const dateRead = (data.dateRead ?? "").trim();
+
+  const frontmatter = [
+    "---",
+    `title: ${y(title)}`,
+    `author: ${y((data.author ?? "").trim() || "不明")}`,
+    `category: ${y((data.category ?? "").trim() || "未分類")}`,
+    `rating: ${rating}`,
+    `dateRead: ${y(dateRead)}`,
+    `tags: [${tags.map((t) => y(String(t).trim())).join(", ")}]`,
+    "---",
+    "",
+  ].join("\n");
+
+  return `${frontmatter}${(data.body ?? "").trim()}\n`;
 }
 
 /** Remove the first 積読 line whose parsed title matches. Local file only. */
@@ -73,7 +106,7 @@ export async function POST(req: Request) {
     );
   }
   // guard against path traversal / illegal filename chars
-  if (/[\\/:*?"<>|]/.test(slug) || slug.includes("..")) {
+  if (badSlug(slug)) {
     return NextResponse.json(
       { error: "slug に使えない文字が含まれています。" },
       { status: 400 }
@@ -88,30 +121,80 @@ export async function POST(req: Request) {
     );
   }
 
-  const tags = Array.isArray(data.tags) ? data.tags.filter(Boolean) : [];
-  const rating = Number.isFinite(data.rating) ? Math.max(0, Math.min(5, Number(data.rating))) : 0;
-  const dateRead = (data.dateRead ?? "").trim();
-
-  const frontmatter = [
-    "---",
-    `title: ${y(title)}`,
-    `author: ${y((data.author ?? "").trim() || "不明")}`,
-    `category: ${y((data.category ?? "").trim() || "未分類")}`,
-    `rating: ${rating}`,
-    `dateRead: ${y(dateRead)}`,
-    `tags: [${tags.map((t) => y(String(t).trim())).join(", ")}]`,
-    "---",
-    "",
-  ].join("\n");
-
-  const body = (data.body ?? "").trim();
-  const contents = `${frontmatter}${body}\n`;
+  const contents = buildRecord(data, title);
 
   try {
     fs.mkdirSync(BOOKS_DIR, { recursive: true });
     fs.writeFileSync(filePath, contents, "utf8");
     // move the book out of the 積読 pile (local only)
     removeFromTsundoku(data.originalTitle?.trim() || title);
+  } catch (e) {
+    return NextResponse.json(
+      { error: `書き込みに失敗しました: ${(e as Error).message}` },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, slug });
+}
+
+/**
+ * Update an existing record. A changed slug renames the file.
+ * Never touches the 積読 list — editing is not "finishing" a book.
+ */
+export async function PUT(req: Request) {
+  if (!ENABLED) {
+    return NextResponse.json(
+      { error: "この機能はローカル開発時のみ利用できます。" },
+      { status: 403 }
+    );
+  }
+
+  let data: Payload;
+  try {
+    data = await req.json();
+  } catch {
+    return NextResponse.json({ error: "不正なリクエストです。" }, { status: 400 });
+  }
+
+  const originalSlug = (data.originalSlug ?? "").trim();
+  const slug = (data.slug ?? "").trim();
+  const title = (data.title ?? "").trim();
+  if (!originalSlug || !slug || !title) {
+    return NextResponse.json(
+      { error: "slug とタイトルは必須です。" },
+      { status: 400 }
+    );
+  }
+  if (badSlug(originalSlug) || badSlug(slug)) {
+    return NextResponse.json(
+      { error: "slug に使えない文字が含まれています。" },
+      { status: 400 }
+    );
+  }
+
+  const oldPath = path.join(BOOKS_DIR, `${originalSlug}.md`);
+  if (!fs.existsSync(oldPath)) {
+    return NextResponse.json(
+      { error: "編集対象の記録が見つかりません。" },
+      { status: 404 }
+    );
+  }
+
+  const newPath = path.join(BOOKS_DIR, `${slug}.md`);
+  if (slug !== originalSlug && fs.existsSync(newPath)) {
+    return NextResponse.json(
+      { error: `${slug}.md はすでに存在します。別の slug にしてください。` },
+      { status: 409 }
+    );
+  }
+
+  const contents = buildRecord(data, title);
+
+  try {
+    fs.writeFileSync(newPath, contents, "utf8");
+    // Only drop the old file once the new one is safely on disk.
+    if (slug !== originalSlug) fs.unlinkSync(oldPath);
   } catch (e) {
     return NextResponse.json(
       { error: `書き込みに失敗しました: ${(e as Error).message}` },

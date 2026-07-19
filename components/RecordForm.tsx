@@ -63,6 +63,12 @@ export function RecordForm({
   initialTitle = "",
   initialAuthor = "",
   sourceTitle,
+  editSlug,
+  initialCategory,
+  initialRating,
+  initialDateRead,
+  initialTags,
+  initialBody,
   categories,
   onDone,
   onCancel,
@@ -71,20 +77,30 @@ export function RecordForm({
   initialAuthor?: string;
   /** 積読から開いた場合の元タイトル。作成後にその行を積読から消すのに使う。 */
   sourceTitle?: string;
+  /** 指定されると編集モードになる（編集前の slug）。 */
+  editSlug?: string;
+  initialCategory?: string;
+  initialRating?: number;
+  initialDateRead?: string;
+  /** すでにカンマ区切りになったタグ文字列。 */
+  initialTags?: string;
+  initialBody?: string;
   categories: string[];
   onDone: (slug: string) => void;
   onCancel: () => void;
 }) {
+  const isEdit = Boolean(editSlug);
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [author, setAuthor] = useState(initialAuthor);
-  const [slug, setSlug] = useState(() => slugify(initialTitle));
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [category, setCategory] = useState("");
-  const [rating, setRating] = useState(4);
-  const [dateRead, setDateRead] = useState(today());
-  const [tags, setTags] = useState("");
-  const [body, setBody] = useState(BODY_TEMPLATE);
+  const [slug, setSlug] = useState(() => (isEdit ? editSlug! : slugify(initialTitle)));
+  // In edit mode the slug must not follow the title — a rename is deliberate.
+  const [slugTouched, setSlugTouched] = useState(isEdit);
+  const [category, setCategory] = useState(initialCategory ?? "");
+  const [rating, setRating] = useState(initialRating ?? 4);
+  const [dateRead, setDateRead] = useState(initialDateRead ?? today());
+  const [tags, setTags] = useState(initialTags ?? "");
+  const [body, setBody] = useState(initialBody ?? BODY_TEMPLATE);
   const [color, setColor] = useState("#b3271e");
   const [showPreview, setShowPreview] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -95,8 +111,10 @@ export function RecordForm({
 
   // Undo/redo history (covers toolbar insertions, which the native textarea
   // undo stack misses). Typing is coalesced via a short debounce.
+  // Seed with the body actually loaded, so the first undo in edit mode does not
+  // wipe the article back to the template.
   const hist = useRef<{ stack: string[]; index: number }>({
-    stack: [BODY_TEMPLATE],
+    stack: [initialBody ?? BODY_TEMPLATE],
     index: 0,
   });
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -230,10 +248,11 @@ export function RecordForm({
     setError(null);
     try {
       const res = await fetch("/api/records", {
-        method: "POST",
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slug,
+          originalSlug: editSlug,
           title,
           author,
           category,
@@ -250,7 +269,7 @@ export function RecordForm({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "作成に失敗しました。");
+        setError(json.error ?? (isEdit ? "更新に失敗しました。" : "作成に失敗しました。"));
         setBusy(false);
         return;
       }
@@ -443,7 +462,7 @@ export function RecordForm({
 
       <div className="rf-actions">
         <button className="rf-btn rf-primary" onClick={submit} disabled={busy}>
-          {busy ? "作成中…" : "記事を作成"}
+          {isEdit ? (busy ? "更新中…" : "記事を更新") : busy ? "作成中…" : "記事を作成"}
         </button>
         <button className="rf-btn" onClick={onCancel} disabled={busy}>
           キャンセル

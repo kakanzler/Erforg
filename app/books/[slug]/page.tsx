@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatReadDate, getAllBooks, getBook } from "@/lib/books";
+import { formatReadDate, getAllBooks, getBook, getCategories } from "@/lib/books";
 import { Stars } from "@/components/Stars";
 import { MarkdownView } from "@/components/MarkdownView";
+import { EditRecord } from "@/components/EditRecord";
 
 export function generateStaticParams() {
   return getAllBooks().map((b) => ({ slug: b.slug }));
@@ -16,6 +17,9 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
 export default function BookPage({ params }: { params: { slug: string } }) {
   const book = getBook(params.slug);
   if (!book) notFound();
+
+  // Editing writes to the working tree — local dev only.
+  const editable = process.env.NODE_ENV !== "production";
 
   return (
     <main className="container">
@@ -43,6 +47,12 @@ export default function BookPage({ params }: { params: { slug: string } }) {
             </div>
           )}
         </header>
+
+        <EditRecord
+          book={book}
+          categories={getCategories().map((c) => c.name)}
+          editable={editable}
+        />
 
         <div className="record-body">
           <MarkdownView>{book.content}</MarkdownView>
