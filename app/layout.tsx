@@ -8,6 +8,7 @@ import {
   getTsundoku,
   getTsundokuCategories,
 } from "@/lib/books";
+import { getNoteCategories } from "@/lib/notes";
 import { AppShell } from "@/components/AppShell";
 
 const garamond = EB_Garamond({
@@ -68,14 +69,35 @@ export default function RootLayout({
     })),
   }));
 
+  // Same reasoning: only the fields the NOTEBOOK tree renders, never the bodies.
+  const noteCategories = getNoteCategories().map((c) => ({
+    name: c.name,
+    notes: c.notes.map((n) => ({
+      category: n.category,
+      slug: n.slug,
+      title: n.title,
+      date: n.date,
+    })),
+  }));
+
+  // 積読 is private (content/tsundoku.md is gitignored), so the right sidebar
+  // exists only locally — and its data is never sent to a published page.
+  const showTsundoku = process.env.NODE_ENV !== "production";
+
+  // Authoring writes to the working tree — local dev only.
+  const notesEditable = process.env.NODE_ENV !== "production";
+
   return (
     <html lang="ja" className={`${garamond.variable} ${mincho.variable}`}>
       <body>
         <AppShell
           books={books}
           categories={getCategories()}
-          tsundoku={getTsundoku()}
-          tsundokuCategories={getTsundokuCategories()}
+          noteCategories={noteCategories}
+          notesEditable={notesEditable}
+          tsundoku={showTsundoku ? getTsundoku() : []}
+          tsundokuCategories={showTsundoku ? getTsundokuCategories() : []}
+          showTsundoku={showTsundoku}
         >
           {children}
         </AppShell>

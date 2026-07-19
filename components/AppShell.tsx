@@ -2,10 +2,17 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { TbrBook } from "@/lib/books";
 import { Stars } from "./Stars";
 import { TsundokuList } from "./TsundokuList";
+import { Modal } from "./Modal";
+
+// Loaded only when the form is opened, so the public bundle stays light.
+const NoteForm = dynamic(() => import("./NoteForm").then((m) => m.NoteForm), {
+  ssr: false,
+});
 
 /** Only the article fields the sidebar tree shows — never the markdown body. */
 export type ShellArticle = {
@@ -23,11 +30,31 @@ export type ShellBook = {
   articles: ShellArticle[];
 };
 
+/** Only the note fields the sidebar tree shows — never the markdown body. */
+export type ShellNote = {
+  category: string;
+  slug: string;
+  title: string;
+  date: string;
+};
+
+export type ShellNoteCategory = {
+  name: string;
+  notes: ShellNote[];
+};
+
 type NamedCount = { name: string; count: number };
 
 const LEFT_KEY = "erfolg:ui:left";
 const RIGHT_KEY = "erfolg:ui:right";
 const COLLAPSED_KEY = "erfolg:ui:collapsed";
+
+/**
+ * Books and note categories share one collapsed-set, so note categories are
+ * namespaced. A book slug can never start with this prefix: the API rejects a
+ * slug containing ":" as an illegal filename character.
+ */
+const NOTE_KEY_PREFIX = "note:";
 
 /** Must match the overlay breakpoint in globals.css. */
 const OVERLAY_MAX_WIDTH = 1100;
@@ -74,21 +101,152 @@ function writeBool(key: string, value: boolean) {
 }
 
 /**
- * The CATEGORY chips and the BOOKS tree. Split out because it reads
- * `useSearchParams()`, which opts its nearest Suspense boundary into client
- * rendering — keeping it here means only this subtree is affected and every
- * page stays statically generated.
+ * NOTEBOOK: notes that belong to a free-form category instead of a book.
+ * A category row only expands/collapses — there is no category index page.
+ */
+function NotebookPanel({
+  noteCategories,
+  editable,
+  collapsed,
+  onToggleCategory,
+  here,
+}: {
+  noteCategories: ShellNoteCategory[];
+  editable: boolean;
+  collapsed: Set<string>;
+  onToggleCategory: (key: string) => void;
+  here: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const total = noteCategories.reduce((n, c) => n + c.notes.length, 0);
+
+  // Nothing to show and nothing to add — the heading alone would be noise.
+  if (!editable && total === 0) return null;
+
+  return (
+    <>
+      <h2 className="section-title notebook-title">
+        <span>
+          NOTEBOOK（{noteCategories.length}分類 ・ {total}件）
+        </span>
+        {editable && (
+          <button
+            type="button"
+            className="notebook-add"
+            title="ノートを追加"
+            aria-label="ノートを追加"
+            onClick={() => setOpen(true)}
+          >
+            ＋
+          </button>
+        )}
+      </h2>
+
+      {open && (
+        <Modal onClose={() => setOpen(false)}>
+          <NoteForm
+            categories={noteCategories.map((c) => c.name)}
+            onCancel={() => setOpen(false)}
+            onDone={() => setOpen(false)}
+          />
+        </Modal>
+      )}
+
+      {noteCategories.length === 0 ? (
+        <p className="tree-empty">まだノートがありません。</p>
+      ) : (
+        <ul className="tree">
+          {noteCategories.map((c) => {
+            const key = `${NOTE_KEY_PREFIX}${c.name}`;
+            const isCollapsed = collapsed.has(key);
+
+            return (
+              <li key={c.name} className="tree-node">
+                <div className="tree-book-row">
+                  <button
+                    type="button"
+                    className="tree-toggle"
+                    onClick={() => onToggleCategory(key)}
+                    aria-expanded={!isCollapsed}
+                    aria-label={`${c.name}のノートを${
+                      isCollapsed ? "開く" : "閉じる"
+                    }`}
+                  >
+                    {isCollapsed ? "▸" : "▾"}
+                  </button>
+                  {/* A category has no page of its own, so the row is a plain
+                      label that toggles rather than a link. */}
+                  <button
+                    type="button"
+                    className="tree-book tree-category"
+                    onClick={() => onToggleCategory(key)}
+                  >
+                    <span className="tree-book-main">
+                      <span className="tree-book-title">{c.name}</span>
+                      <span className="tree-book-meta">{c.notes.length}件</span>
+                    </span>
+                  </button>
+                </div>
+
+                {!isCollapsed &&
+                  (c.notes.length > 0 ? (
+                    <ul className="tree-articles">
+                      {c.notes.map((n, i) => {
+                        const nHref = `/notes/${c.name}/${n.slug}`;
+                        return (
+                          <li key={n.slug} className="tree-article-item">
+                            <Link
+                              href={`/notes/${encodeURIComponent(
+                                c.name
+                              )}/${encodeURIComponent(n.slug)}`}
+                              className="tree-article"
+                              data-current={here === nHref}
+                            >
+                              <span className="tree-connector" aria-hidden="true">
+                                {i === c.notes.length - 1 ? "└" : "├"}
+                              </span>
+                              <span className="tree-article-title">{n.title}</span>
+                              <span className="tree-article-meta">
+                                {shortDate(n.date)}
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="tree-empty">ノートなし</p>
+                  ))}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/**
+ * The CATEGORY chips, the BOOKS tree and the NOTEBOOK tree. Split out because
+ * it reads `useSearchParams()`, which opts its nearest Suspense boundary into
+ * client rendering — keeping it here means only this subtree is affected and
+ * every page stays statically generated.
  */
 function LeftPanel({
   books,
   categories,
+  noteCategories,
+  notesEditable,
   collapsed,
-  onToggleBook,
+  onToggle,
 }: {
   books: ShellBook[];
   categories: NamedCount[];
+  noteCategories: ShellNoteCategory[];
+  notesEditable: boolean;
   collapsed: Set<string>;
-  onToggleBook: (slug: string) => void;
+  /** Toggles one entry of the shared collapsed-set (book slug or note key). */
+  onToggle: (key: string) => void;
 }) {
   const active = useSearchParams().get("category") ?? undefined;
   const here = decodePath(usePathname());
@@ -135,7 +293,7 @@ function LeftPanel({
                   <button
                     type="button"
                     className="tree-toggle"
-                    onClick={() => onToggleBook(book.slug)}
+                    onClick={() => onToggle(book.slug)}
                     aria-expanded={!isCollapsed}
                     aria-label={`${book.title}の記事を${
                       isCollapsed ? "開く" : "閉じる"
@@ -190,6 +348,14 @@ function LeftPanel({
           })}
         </ul>
       )}
+
+      <NotebookPanel
+        noteCategories={noteCategories}
+        editable={notesEditable}
+        collapsed={collapsed}
+        onToggleCategory={onToggle}
+        here={here}
+      />
     </>
   );
 }
@@ -262,21 +428,29 @@ function RightPanel({
 }
 
 /**
- * The three-column frame shared by every page: CATEGORY + BOOKS on the left,
- * 積読 on the right, the page itself in the middle. Each side toggles with a
- * button or a hotkey ([ and ]) and remembers its state in localStorage.
+ * The frame shared by every page: CATEGORY + BOOKS on the left, the page in the
+ * middle, and — only when running locally — 積読 on the right. Each side toggles
+ * with a button or a hotkey ([ and ]) and remembers its state in localStorage.
  */
 export function AppShell({
   books,
   categories,
+  noteCategories,
+  notesEditable,
   tsundoku,
   tsundokuCategories,
+  showTsundoku,
   children,
 }: {
   books: ShellBook[];
   categories: NamedCount[];
+  noteCategories: ShellNoteCategory[];
+  /** ノートの作成・編集はローカル開発時のみ。 */
+  notesEditable: boolean;
   tsundoku: TbrBook[];
   tsundokuCategories: NamedCount[];
+  /** 積読 is private, so the right sidebar exists only in local development. */
+  showTsundoku: boolean;
   children: React.ReactNode;
 }) {
   // Fixed server-side defaults. Reading localStorage in a useState initializer
@@ -320,11 +494,13 @@ export function AppShell({
     }
   }, [hydrated, collapsed]);
 
-  const toggleBook = useCallback((slug: string) => {
+  // Shared by the BOOKS and NOTEBOOK trees; note categories carry a prefix so
+  // a category and a book slug of the same name cannot collide in the set.
+  const toggleCollapsed = useCallback((key: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
@@ -334,6 +510,8 @@ export function AppShell({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "[" && e.key !== "]") return;
+      // "]" has nothing to toggle when the right sidebar does not exist.
+      if (e.key === "]" && !showTsundoku) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
       if (t) {
@@ -353,7 +531,7 @@ export function AppShell({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [showTsundoku]);
 
   return (
     <div className="shell">
@@ -367,19 +545,21 @@ export function AppShell({
       >
         [
       </button>
-      <button
-        type="button"
-        className="shell-toggle shell-toggle-right"
-        title="右サイドバー（]）"
-        aria-label="右サイドバー（]）"
-        aria-expanded={rightOpen}
-        onClick={() => setRightOpen((v) => !v)}
-      >
-        ]
-      </button>
+      {showTsundoku && (
+        <button
+          type="button"
+          className="shell-toggle shell-toggle-right"
+          title="右サイドバー（]）"
+          aria-label="右サイドバー（]）"
+          aria-expanded={rightOpen}
+          onClick={() => setRightOpen((v) => !v)}
+        >
+          ]
+        </button>
+      )}
 
       {/* Only visible at overlay widths (see globals.css). */}
-      {(leftOpen || rightOpen) && (
+      {(leftOpen || (rightOpen && showTsundoku)) && (
         <div
           className="shell-backdrop"
           aria-hidden="true"
@@ -393,32 +573,36 @@ export function AppShell({
       <aside
         className="shell-side shell-side-left"
         data-open={leftOpen}
-        aria-label="カテゴリと本"
+        aria-label="カテゴリ・本・ノート"
         aria-hidden={!leftOpen}
       >
         <Suspense fallback={<p className="tree-empty">読み込み中…</p>}>
           <LeftPanel
             books={books}
             categories={categories}
+            noteCategories={noteCategories}
+            notesEditable={notesEditable}
             collapsed={collapsed}
-            onToggleBook={toggleBook}
+            onToggle={toggleCollapsed}
           />
         </Suspense>
       </aside>
 
       <div className="shell-center">{children}</div>
 
-      <aside
-        className="shell-side shell-side-right"
-        data-open={rightOpen}
-        aria-label="積んでる本"
-        aria-hidden={!rightOpen}
-      >
-        <RightPanel
-          tsundoku={tsundoku}
-          tsundokuCategories={tsundokuCategories}
-        />
-      </aside>
+      {showTsundoku && (
+        <aside
+          className="shell-side shell-side-right"
+          data-open={rightOpen}
+          aria-label="積んでる本"
+          aria-hidden={!rightOpen}
+        >
+          <RightPanel
+            tsundoku={tsundoku}
+            tsundokuCategories={tsundokuCategories}
+          />
+        </aside>
+      )}
     </div>
   );
 }
