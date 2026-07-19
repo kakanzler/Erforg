@@ -56,6 +56,14 @@ a {
   padding: 4rem 1.5rem 6rem;
 }
 
+/* Reading column width is wrong for authoring: the /edit pages put an editor
+   and a preview side by side and need room for both. */
+.container-wide {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 6rem;
+}
+
 /* ---- Three-column shell (sidebars + page) ----
    Stacking order, from the back: sidebars (100) < overlay backdrop (150) <
    overlay sidebars (200) < their toggle buttons (300) < the record-form modal
@@ -914,6 +922,7 @@ button.chip {
 
 .notebook-add {
   flex: none;
+  display: inline-block;
   font-family: inherit;
   font-size: 0.9rem;
   line-height: 1;
@@ -1073,6 +1082,7 @@ button.chip {
 .tbr-create {
   margin-left: auto;
   flex: none;
+  white-space: nowrap;
   font-family: inherit;
   font-size: 0.72rem;
   color: var(--accent);
@@ -1192,16 +1202,6 @@ button.chip {
   justify-content: space-between;
 }
 
-.rf-preview-toggle {
-  font-family: inherit;
-  font-size: 0.78rem;
-  color: var(--accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
 /* Math tools on the left, ordinary text formatting pushed to the right edge, so
    the two kinds of button are never confused for one another. */
 .rf-toolbar {
@@ -1297,14 +1297,6 @@ button.chip {
   cursor: pointer;
 }
 
-.rf-preview {
-  min-height: 8rem;
-  padding: 0.8rem 1rem;
-  background: rgba(255, 253, 246, 0.6);
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-}
-
 .rf-error {
   color: var(--accent);
   font-size: 0.85rem;
@@ -1371,6 +1363,117 @@ button.chip {
 @media (max-width: 560px) {
   .rf-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---- /edit pages (local authoring) ----
+   Metadata runs across the full width; below it the toolbar spans the full
+   width too, and only the textarea and the reading pane split 1:1 beneath it.
+   Each pane scrolls on its own so the two never drag one another around. */
+.edit-title {
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  margin: 1.2rem 0 0.2rem;
+}
+
+.edit-lead {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+
+/* The inner wrapper inside MarkdownEditor holding textarea | rightPane. */
+.edit-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  align-items: start;
+  margin-top: 0.6rem;
+}
+
+.edit-pane {
+  /* Without this a long unbroken line inside a pane widens the whole grid. */
+  min-width: 0;
+}
+
+/* Writing happens here, so the panes take the viewport rather than a token
+   fixed height. The subtracted band is the metadata block plus the toolbar. */
+.edit-pane-editor .rf-textarea {
+  height: calc(100vh - 26rem);
+  min-height: 26rem;
+  resize: vertical;
+}
+
+.edit-tabs {
+  display: flex;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0.5rem;
+}
+
+.edit-tab {
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.35rem 0.7rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+
+.edit-tab[data-active="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.edit-ref-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.edit-ref-picker .rf-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.edit-pane-body {
+  height: calc(100vh - 26rem);
+  min-height: 26rem;
+  overflow: auto;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 253, 246, 0.6);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+/* The reference tab spends its picker's height, so its body is that much
+   shorter than the preview's — keep the two panes the same size. */
+.edit-pane-side .edit-ref-picker + .edit-pane-body {
+  height: calc(100vh - 29rem);
+  min-height: 23rem;
+}
+
+.edit-pane-hint {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+}
+
+/* Side by side stops paying below this width — the editor comes first. */
+@media (max-width: 1000px) {
+  .edit-split {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-pane-editor .rf-textarea,
+  .edit-pane-body,
+  .edit-pane-side .edit-ref-picker + .edit-pane-body {
+    height: 60vh;
+    min-height: 20rem;
   }
 }
 

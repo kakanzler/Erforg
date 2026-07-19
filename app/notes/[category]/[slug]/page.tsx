@@ -50,18 +50,7 @@ export default function NotePage({
           )}
         </header>
 
-        <EditNote
-          categories={getNoteCategories().map((c) => c.name)}
-          note={{
-            category: note.category,
-            slug: note.slug,
-            title: note.title,
-            date: note.date,
-            tags: note.tags,
-            content: note.content,
-          }}
-          editable={editable}
-        />
+        <EditNote category={note.category} slug={note.slug} editable={editable} />
 
         <div className="record-body">
           <MarkdownView>{note.content}</MarkdownView>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MarkdownView } from "./MarkdownView";
 
 // Toolbar insertions. `toggle` markers (bold/italic/underline/strike) are removed
 // when the same button is pressed again on an already-wrapped selection.
@@ -238,22 +237,31 @@ function prefixLetter(e: React.KeyboardEvent): string {
 
 /**
  * The shared authoring editor: the math / text toolbar, its own undo–redo
- * history (the native textarea stack misses programmatic insertions), selection
- * handling and the preview toggle. The parent owns the body string, so a form
- * can snapshot it into a draft or post it without knowing about any of this.
+ * history (the native textarea stack misses programmatic insertions) and
+ * selection handling. The parent owns the body string, so a form can snapshot
+ * it into a draft or post it without knowing about any of this.
+ *
+ * There is no preview here: every consumer is an /edit page whose right-hand
+ * pane already renders the body, so a second preview would only compete with it.
  */
 export function MarkdownEditor({
   value,
   onChange,
   id = "rf-body",
+  rightPane,
 }: {
   value: string;
   onChange: (v: string) => void;
   /** 本文 textarea の id。同じ画面に複数置くときだけ変える。 */
   id?: string;
+  /**
+   * A reading pane to show beside the textarea (preview / reference tabs).
+   * When present, the toolbar spans the full width above a `textarea | rightPane`
+   * split; when absent, the textarea alone fills the row as before.
+   */
+  rightPane?: React.ReactNode;
 }) {
   const [color, setColor] = useState("#b3271e");
-  const [showPreview, setShowPreview] = useState(false);
   // The group armed by Alt+<prefix>, waiting for its second keystroke.
   const [armed, setArmed] = useState<ToolGroup | null>(null);
 
@@ -482,55 +490,69 @@ export function MarkdownEditor({
           本文（Markdown ・ 数式は $…$ ・ 図は ```mermaid ・ Ctrl+Z /
           Ctrl+Shift+Z ・ Alt+キーで記号グループ）
         </label>
-        <button
-          type="button"
-          className="rf-preview-toggle"
-          onClick={() => setShowPreview((v) => !v)}
-        >
-          {showPreview ? "編集に戻る" : "プレビュー"}
-        </button>
       </div>
 
-      {!showPreview && (
-        <div className="rf-toolbar">
-          {/* Absolutely positioned, so arming a chord never reflows the toolbar. */}
-          <span className="rf-chord" role="status" aria-live="polite">
-            {armed ? `${armed.label}…` : ""}
-          </span>
+      <div className="rf-toolbar">
+        {/* Absolutely positioned, so arming a chord never reflows the toolbar. */}
+        <span className="rf-chord" role="status" aria-live="polite">
+          {armed ? `${armed.label}…` : ""}
+        </span>
 
-          <div className="rf-tool-section">
-            {MATH_GROUPS.map((group) => (
-              <div key={group.label} className="rf-tool-group">
-                <span className="rf-tool-group-label">
-                  {group.label} (Alt+{group.prefix.toUpperCase()})
-                </span>
-                <div className="rf-tool-group-items">
-                  {group.tools.map((t) => (
-                    <button
-                      key={t.title}
-                      type="button"
-                      className="rf-tool"
-                      title={toolTitle(group, t)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => runTool(t)}
-                    >
-                      {t.sym}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="rf-tool-section rf-tool-section-text">
-            <div className="rf-tool-group">
+        <div className="rf-tool-section">
+          {MATH_GROUPS.map((group) => (
+            <div key={group.label} className="rf-tool-group">
               <span className="rf-tool-group-label">
-                {TEXT_GROUP.label} (Alt+{TEXT_GROUP.prefix.toUpperCase()})
+                {group.label} (Alt+{group.prefix.toUpperCase()})
               </span>
               <div className="rf-tool-group-items">
-                {/* The colour tool renders below, beside its picker. */}
+                {group.tools.map((t) => (
+                  <button
+                    key={t.title}
+                    type="button"
+                    className="rf-tool"
+                    title={toolTitle(group, t)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => runTool(t)}
+                  >
+                    {t.sym}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="rf-tool-section rf-tool-section-text">
+          <div className="rf-tool-group">
+            <span className="rf-tool-group-label">
+              {TEXT_GROUP.label} (Alt+{TEXT_GROUP.prefix.toUpperCase()})
+            </span>
+            <div className="rf-tool-group-items">
+              {/* The colour tool renders below, beside its picker. */}
+              {TEXT_GROUP.tools
+                .filter((t) => !t.useColor)
+                .map((t) => (
+                  <button
+                    key={t.title}
+                    type="button"
+                    className="rf-tool"
+                    title={toolTitle(TEXT_GROUP, t)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => runTool(t)}
+                  >
+                    {t.sym}
+                  </button>
+                ))}
+              <span className="rf-tool-color">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  title="文字色を選択"
+                  aria-label="文字色"
+                />
                 {TEXT_GROUP.tools
-                  .filter((t) => !t.useColor)
+                  .filter((t) => t.useColor)
                   .map((t) => (
                     <button
                       key={t.title}
@@ -543,38 +565,27 @@ export function MarkdownEditor({
                       {t.sym}
                     </button>
                   ))}
-                <span className="rf-tool-color">
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    title="文字色を選択"
-                    aria-label="文字色"
-                  />
-                  {TEXT_GROUP.tools
-                    .filter((t) => t.useColor)
-                    .map((t) => (
-                      <button
-                        key={t.title}
-                        type="button"
-                        className="rf-tool"
-                        title={toolTitle(TEXT_GROUP, t)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => runTool(t)}
-                      >
-                        {t.sym}
-                      </button>
-                    ))}
-                </span>
-              </div>
+              </span>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {showPreview ? (
-        <div className="rf-preview record-body">
-          <MarkdownView>{value}</MarkdownView>
+      {rightPane ? (
+        <div className="edit-split">
+          <div className="edit-pane edit-pane-editor">
+            <textarea
+              id={id}
+              ref={taRef}
+              className="rf-input rf-textarea"
+              value={value}
+              onChange={(e) => onBodyChange(e.target.value)}
+              onKeyDown={onKeyDown}
+              onBlur={disarm}
+              rows={14}
+            />
+          </div>
+          <div className="edit-pane edit-pane-side">{rightPane}</div>
         </div>
       ) : (
         <textarea

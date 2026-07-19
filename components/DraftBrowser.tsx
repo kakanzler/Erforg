@@ -40,9 +40,11 @@ type DraftEntry = {
   /** Subdued second line: the parent book, or the note's category. */
   context: string;
   body: string;
-  /** Destination page when the draft belongs to an existing one, else null. */
+  /**
+   * The /edit page this draft can be picked up on, when the key names an
+   * existing item. A "new" draft has no target yet, so it stays null.
+   */
   href: string | null;
-  linkLabel: string;
 };
 
 const UNTITLED = "（無題）";
@@ -102,8 +104,7 @@ function parseEntry(key: string, raw: string): DraftEntry | null {
       title: d.title?.trim() || UNTITLED,
       context: category || (pair ? pair[0] : ""),
       body: d.body ?? "",
-      href: pair ? encodePath("notes", pair[0], pair[1]) : null,
-      linkLabel: "ノートを開く",
+      href: pair ? encodePath("edit", "note", pair[0], pair[1]) : null,
     };
   }
 
@@ -118,8 +119,7 @@ function parseEntry(key: string, raw: string): DraftEntry | null {
       title: d.title?.trim() || UNTITLED,
       context: d.bookTitle?.trim() || d.bookSlug?.trim() || "",
       body: d.body ?? "",
-      href: pair ? encodePath("books", pair[0], pair[1]) : null,
-      linkLabel: "記事を開く",
+      href: pair ? encodePath("edit", "record", pair[0], pair[1]) : null,
     };
   }
 
@@ -239,7 +239,7 @@ export function DraftBrowser() {
             <div className="db-preview-actions">
               {selected.href && (
                 <Link href={selected.href} className="see-all">
-                  {selected.linkLabel}
+                  編集を再開
                 </Link>
               )}
               <button

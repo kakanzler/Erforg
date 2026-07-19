@@ -2,17 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import type { TbrBook } from "@/lib/books";
-import { Modal } from "./Modal";
-import type { BookOption } from "./RecordForm";
-
-// The form pulls in react-markdown + KaTeX for its live preview; load it only
-// when a book is actually being turned into a record (never on the public page).
-const RecordForm = dynamic(
-  () => import("./RecordForm").then((m) => m.RecordForm),
-  { ssr: false }
-);
 
 // Below this many books the list is short enough to scan by eye.
 const FILTER_THRESHOLD = 8;
@@ -23,29 +13,20 @@ function norm(s: string): string {
 }
 
 /**
- * 積読リスト。ローカル開発時(editable)は各行から記事を作成でき、作成すると
- * その本は積読から消え、content/books にMDが生成される。
+ * 積読リスト。ローカル開発時(editable)は各行から /edit/record へ移動して
+ * 読書記録を書ける。保存するとその本は積読から消え、content/books にMDが生成される。
  */
 export function TsundokuAuthor({
   books,
-  existingBooks,
-  categories,
   editable,
 }: {
   books: TbrBook[];
-  /** すでに content/books にある本。記事の親として選べるようにする。 */
-  existingBooks: BookOption[];
-  categories: string[];
   editable: boolean;
 }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [created, setCreated] = useState<{ bookSlug: string; slug: string } | null>(
-    null
-  );
   const [query, setQuery] = useState("");
 
-  // Keep each book's index in the *original* list — openIndex refers to that,
-  // so filtering must not renumber the rows.
+  // Each row keeps its index in the *original* list, so filtering never
+  // renumbers the rows.
   const shown = useMemo(() => {
     const rows = books.map((book, index) => ({ book, index }));
     const q = norm(query.trim());
@@ -58,7 +39,6 @@ export function TsundokuAuthor({
 
   if (books.length === 0) return null;
 
-  const openBook = openIndex !== null ? books[openIndex] : null;
   const filtering = query.trim().length > 0;
 
   return (
@@ -86,15 +66,12 @@ export function TsundokuAuthor({
               <span className="tbr-title">{b.title}</span>
               {b.author && <span className="tbr-author">{b.author}</span>}
               {editable && (
-                <button
+                <Link
                   className="tbr-create"
-                  onClick={() => {
-                    setCreated(null);
-                    setOpenIndex(i);
-                  }}
+                  href={`/edit/record?from=${encodeURIComponent(b.title)}`}
                 >
                   ✎ 記事化
-                </button>
+                </Link>
               )}
             </div>
           </li>
@@ -102,39 +79,6 @@ export function TsundokuAuthor({
 
         {filtering && shown.length === 0 && (
           <li className="tbr-empty">該当する本がありません。</li>
-        )}
-
-        {editable && openBook && (
-          <Modal onClose={() => setOpenIndex(null)}>
-            <RecordForm
-              books={existingBooks}
-              initialTitle={openBook.title}
-              initialAuthor={openBook.author}
-              // "未分類" is the absence of a category, not one worth prefilling.
-              initialCategory={
-                openBook.category === "未分類" ? undefined : openBook.category
-              }
-              sourceTitle={openBook.title}
-              categories={categories}
-              onCancel={() => setOpenIndex(null)}
-              onDone={(r) => {
-                setOpenIndex(null);
-                setCreated(r);
-              }}
-            />
-          </Modal>
-        )}
-
-        {created && (
-          <li className="tbr-created-note">
-            記録を作成しました →{" "}
-            <Link
-              href={`/books/${created.bookSlug}/${created.slug}`}
-              className="see-all"
-            >
-              {created.slug} を見る
-            </Link>
-          </li>
         )}
       </ul>
     </>

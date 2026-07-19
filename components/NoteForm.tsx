@@ -2,8 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { EditorPane, type ReferenceItem } from "./EditSplit";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { slugify } from "./RecordForm";
+
+/**
+ * Slug to show while the writer is still typing the title: empty until there
+ * is actually a title, so a blank create page does not show `slugify("")`'s
+ * timestamp fallback before anything has been entered.
+ */
+function autoSlug(title: string): string {
+  return title.trim() ? slugify(title) : "";
+}
 
 const DRAFT_PREFIX = "erfolg:draft:note:";
 const DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // stale drafts stop nagging after 2 weeks
@@ -67,8 +77,8 @@ export function NoteForm({
   initialDate,
   initialTags,
   initialBody,
-  onDone,
-  onCancel,
+  references,
+  cancelHref,
 }: {
   /** 既存のノートカテゴリ一覧。セレクトに出す。 */
   categories: string[];
@@ -81,8 +91,10 @@ export function NoteForm({
   /** すでにカンマ区切りになったタグ文字列。 */
   initialTags?: string;
   initialBody?: string;
-  onDone: (r: { category: string; slug: string }) => void;
-  onCancel: () => void;
+  /** 参照ペインに出す既存の記事・ノートの一覧（本文は含まない）。 */
+  references: ReferenceItem[];
+  /** キャンセル時の戻り先。編集ならノート、新規なら開いてきたページ。 */
+  cancelHref: string;
 }) {
   const isEdit = Boolean(editSlug);
   const router = useRouter();
@@ -97,7 +109,7 @@ export function NoteForm({
   const [newCategory, setNewCategory] = useState("");
 
   const [title, setTitle] = useState(initialTitle);
-  const [slug, setSlug] = useState(() => (isEdit ? editSlug! : slugify(initialTitle)));
+  const [slug, setSlug] = useState(() => (isEdit ? editSlug! : autoSlug(initialTitle)));
   // In edit mode the slug must not follow the title — a rename is deliberate.
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [date, setDate] = useState(initialDate ?? today());
@@ -133,7 +145,7 @@ export function NoteForm({
 
   // Keep the slug in sync with the title until that slug is edited by hand.
   useEffect(() => {
-    if (!slugTouched) setSlug(slugify(title));
+    if (!slugTouched) setSlug(autoSlug(title));
   }, [title, slugTouched]);
 
   // On mount, look for a leftover draft and offer to restore it (never auto-applied).
@@ -226,7 +238,10 @@ export function NoteForm({
         body: JSON.stringify({
           category,
           originalCategory: editCategory,
-          slug,
+          // The slug field is left empty while the title is empty (see
+          // `autoSlug`); fall back to `slugify`'s own default only now, at
+          // the point something is actually submitted.
+          slug: slug || slugify(title),
           originalSlug: editSlug,
           title,
           date,
@@ -251,7 +266,10 @@ export function NoteForm({
         }
       }
       router.refresh();
-      onDone({ category: json.category, slug: json.slug });
+      // Straight to the saved note — the edit page has done its job.
+      router.push(
+        `/notes/${encodeURIComponent(json.category)}/${encodeURIComponent(json.slug)}`
+      );
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -272,67 +290,73 @@ export function NoteForm({
         </div>
       )}
 
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="nf-category">
-          カテゴリ
-        </label>
-        <select
-          id="nf-category"
-          className="rf-input"
-          value={picked}
-          onChange={(e) => setPicked(e.target.value)}
-        >
-          <option value={NEW_CATEGORY}>＋ 新しいカテゴリ</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+      {/* Metadata first, across the full width — the split below belongs to the
+          body alone. */}
+      <div className="rf-grid">
+        <div className="rf-row">
+          <label className="rf-label" htmlFor="nf-category">
+            カテゴリ
+          </label>
+          <select
+            id="nf-category"
+            className="rf-input"
+            value={picked}
+            onChange={(e) => setPicked(e.target.value)}
+          >
+            <option value={NEW_CATEGORY}>＋ 新しいカテゴリ</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="rf-row">
+          <label className="rf-label" htmlFor="nf-title">
+            タイトル
+          </label>
+          <input
+            id="nf-title"
+            className="rf-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="ノートのタイトル"
+          />
+        </div>
+
+        <div className="rf-row">
+          <label className="rf-label" htmlFor="nf-slug">
+            slug（ファイル名）
+          </label>
+          <input
+            id="nf-slug"
+            className="rf-input"
+            value={slug}
+            onChange={(e) => {
+              setSlugTouched(true);
+              setSlug(e.target.value);
+            }}
+          />
+        </div>
       </div>
 
       {isNewCategory && (
-        <div className="rf-row">
-          <label className="rf-label" htmlFor="nf-new-category">
-            新しいカテゴリ名（フォルダ名）
-          </label>
-          <input
-            id="nf-new-category"
-            className="rf-input"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            placeholder="数学 / 雑記 …"
-          />
+        <div className="rf-grid">
+          <div className="rf-row">
+            <label className="rf-label" htmlFor="nf-new-category">
+              新しいカテゴリ名（フォルダ名）
+            </label>
+            <input
+              id="nf-new-category"
+              className="rf-input"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="数学 / 雑記 …"
+            />
+          </div>
         </div>
       )}
-
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="nf-title">
-          タイトル
-        </label>
-        <input
-          id="nf-title"
-          className="rf-input"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="ノートのタイトル"
-        />
-      </div>
-
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="nf-slug">
-          slug（ファイル名）
-        </label>
-        <input
-          id="nf-slug"
-          className="rf-input"
-          value={slug}
-          onChange={(e) => {
-            setSlugTouched(true);
-            setSlug(e.target.value);
-          }}
-        />
-      </div>
 
       <div className="rf-grid">
         <div className="rf-row">
@@ -361,7 +385,12 @@ export function NoteForm({
         </div>
       </div>
 
-      <MarkdownEditor value={body} onChange={setBody} id="nf-body" />
+      <MarkdownEditor
+        value={body}
+        onChange={setBody}
+        id="nf-body"
+        rightPane={<EditorPane body={body} references={references} />}
+      />
 
       {error && <p className="rf-error">{error}</p>}
 
@@ -375,7 +404,11 @@ export function NoteForm({
               ? "作成中…"
               : "ノートを作成"}
         </button>
-        <button className="rf-btn" onClick={onCancel} disabled={busy}>
+        <button
+          className="rf-btn"
+          onClick={() => router.push(cancelHref)}
+          disabled={busy}
+        >
           キャンセル
         </button>
       </div>

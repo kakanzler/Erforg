@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { EditorPane, type ReferenceItem } from "./EditSplit";
 import { MarkdownEditor } from "./MarkdownEditor";
 
 const DRAFT_PREFIX = "erfolg:draft:";
@@ -67,6 +68,15 @@ export function slugify(title: string): string {
   return s || `record-${Date.now()}`;
 }
 
+/**
+ * Slug to show while the writer is still typing the title: empty until there
+ * is actually a title, so a blank create page does not show `slugify("")`'s
+ * timestamp fallback before anything has been entered.
+ */
+function autoSlug(title: string): string {
+  return title.trim() ? slugify(title) : "";
+}
+
 function today(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -104,8 +114,8 @@ export function RecordForm({
   initialTags,
   initialBody,
   categories,
-  onDone,
-  onCancel,
+  references,
+  cancelHref,
 }: {
   /** 既存の本の一覧。親の本を選ぶセレクトに出す。 */
   books: BookOption[];
@@ -124,8 +134,10 @@ export function RecordForm({
   initialTags?: string;
   initialBody?: string;
   categories: string[];
-  onDone: (r: { bookSlug: string; slug: string }) => void;
-  onCancel: () => void;
+  /** 参照ペインに出す既存の記事・ノートの一覧（本文は含まない）。 */
+  references: ReferenceItem[];
+  /** キャンセル時の戻り先。編集なら記事、新規なら開いてきたページ。 */
+  cancelHref: string;
 }) {
   const isEdit = Boolean(editSlug);
   const router = useRouter();
@@ -142,11 +154,11 @@ export function RecordForm({
   const [bookTitle, setBookTitle] = useState(initialTitle);
   const [bookAuthor, setBookAuthor] = useState(initialAuthor);
   const [bookCategory, setBookCategory] = useState(initialCategory ?? "");
-  const [bookSlug, setBookSlug] = useState(() => slugify(initialTitle));
+  const [bookSlug, setBookSlug] = useState(() => autoSlug(initialTitle));
   const [bookSlugTouched, setBookSlugTouched] = useState(false);
 
   const [title, setTitle] = useState(initialTitle);
-  const [slug, setSlug] = useState(() => (isEdit ? editSlug! : slugify(initialTitle)));
+  const [slug, setSlug] = useState(() => (isEdit ? editSlug! : autoSlug(initialTitle)));
   // In edit mode the slug must not follow the title — a rename is deliberate.
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [rating, setRating] = useState(initialRating ?? 4);
@@ -192,11 +204,11 @@ export function RecordForm({
 
   // Keep each slug in sync with its title until that slug is edited by hand.
   useEffect(() => {
-    if (!slugTouched) setSlug(slugify(title));
+    if (!slugTouched) setSlug(autoSlug(title));
   }, [title, slugTouched]);
 
   useEffect(() => {
-    if (!bookSlugTouched) setBookSlug(slugify(bookTitle));
+    if (!bookSlugTouched) setBookSlug(autoSlug(bookTitle));
   }, [bookTitle, bookSlugTouched]);
 
   // On mount, look for a leftover draft and offer to restore it (never auto-applied).
@@ -301,7 +313,10 @@ export function RecordForm({
     setBusy(true);
     setError(null);
     try {
-      const targetBookSlug = isNewBook ? bookSlug : parent;
+      // The slug fields are left empty while their title is empty (see
+      // `autoSlug`); fall back to `slugify`'s own default only now, at the
+      // point something is actually submitted.
+      const targetBookSlug = isNewBook ? bookSlug || slugify(bookTitle) : parent;
       const res = await fetch("/api/records", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -312,7 +327,7 @@ export function RecordForm({
           bookTitle,
           bookAuthor,
           bookCategory,
-          slug,
+          slug: slug || slugify(title),
           originalSlug: editSlug,
           title,
           rating,
@@ -340,7 +355,11 @@ export function RecordForm({
         }
       }
       router.refresh();
-      onDone({ bookSlug: json.bookSlug, slug: json.slug });
+      // Straight to the saved article — the edit page has done its job, and the
+      // sidebars there already show where it landed.
+      router.push(
+        `/books/${encodeURIComponent(json.bookSlug)}/${encodeURIComponent(json.slug)}`
+      );
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -360,41 +379,73 @@ export function RecordForm({
           </button>
         </div>
       )}
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="rf-parent">
-          親の本
-        </label>
-        <select
-          id="rf-parent"
-          className="rf-input"
-          value={parent}
-          onChange={(e) => setParent(e.target.value)}
-        >
-          <option value={NEW_BOOK}>＋ 新しい本</option>
-          {books.map((b) => (
-            <option key={b.slug} value={b.slug}>
-              {b.title}
-              {b.author ? `（${b.author}）` : ""}
-            </option>
-          ))}
-        </select>
+      {/* Metadata first, across the full width — the split below belongs to the
+          body alone. */}
+      <div className="rf-grid">
+        <div className="rf-row">
+          <label className="rf-label" htmlFor="rf-parent">
+            親の本
+          </label>
+          <select
+            id="rf-parent"
+            className="rf-input"
+            value={parent}
+            onChange={(e) => setParent(e.target.value)}
+          >
+            <option value={NEW_BOOK}>＋ 新しい本</option>
+            {books.map((b) => (
+              <option key={b.slug} value={b.slug}>
+                {b.title}
+                {b.author ? `（${b.author}）` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="rf-row">
+          <label className="rf-label" htmlFor="rf-title">
+            記事タイトル
+          </label>
+          <input
+            id="rf-title"
+            className="rf-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="記事のタイトル"
+          />
+        </div>
+
+        <div className="rf-row">
+          <label className="rf-label" htmlFor="rf-slug">
+            記事の slug（ファイル名）
+          </label>
+          <input
+            id="rf-slug"
+            className="rf-input"
+            value={slug}
+            onChange={(e) => {
+              setSlugTouched(true);
+              setSlug(e.target.value);
+            }}
+          />
+        </div>
       </div>
 
       {isNewBook ? (
         <>
-          <div className="rf-row">
-            <label className="rf-label" htmlFor="rf-book-title">
-              本のタイトル
-            </label>
-            <input
-              id="rf-book-title"
-              className="rf-input"
-              value={bookTitle}
-              onChange={(e) => setBookTitle(e.target.value)}
-              placeholder="本のタイトル"
-            />
-          </div>
           <div className="rf-grid">
+            <div className="rf-row">
+              <label className="rf-label" htmlFor="rf-book-title">
+                本のタイトル
+              </label>
+              <input
+                id="rf-book-title"
+                className="rf-input"
+                value={bookTitle}
+                onChange={(e) => setBookTitle(e.target.value)}
+                placeholder="本のタイトル"
+              />
+            </div>
             <div className="rf-row">
               <label className="rf-label" htmlFor="rf-book-author">
                 著者
@@ -426,19 +477,21 @@ export function RecordForm({
               </datalist>
             </div>
           </div>
-          <div className="rf-row">
-            <label className="rf-label" htmlFor="rf-book-slug">
-              本の slug（フォルダ名）
-            </label>
-            <input
-              id="rf-book-slug"
-              className="rf-input"
-              value={bookSlug}
-              onChange={(e) => {
-                setBookSlugTouched(true);
-                setBookSlug(e.target.value);
-              }}
-            />
+          <div className="rf-grid">
+            <div className="rf-row">
+              <label className="rf-label" htmlFor="rf-book-slug">
+                本の slug（フォルダ名）
+              </label>
+              <input
+                id="rf-book-slug"
+                className="rf-input"
+                value={bookSlug}
+                onChange={(e) => {
+                  setBookSlugTouched(true);
+                  setBookSlug(e.target.value);
+                }}
+              />
+            </div>
           </div>
         </>
       ) : (
@@ -447,42 +500,13 @@ export function RecordForm({
         // would silently do nothing.
         <div className="rf-row">
           <span className="rf-label">この本の情報</span>
-          {/* inline: the stylesheet is out of scope for this change */}
-          <p style={{ margin: "0.2rem 0", opacity: 0.85 }}>
+          <p className="rf-static">
             {[selectedBook?.title, selectedBook?.author, selectedBook?.category]
               .filter(Boolean)
               .join(" ・ ")}
           </p>
         </div>
       )}
-
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="rf-title">
-          記事タイトル
-        </label>
-        <input
-          id="rf-title"
-          className="rf-input"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="記事のタイトル"
-        />
-      </div>
-
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="rf-slug">
-          記事の slug（ファイル名）
-        </label>
-        <input
-          id="rf-slug"
-          className="rf-input"
-          value={slug}
-          onChange={(e) => {
-            setSlugTouched(true);
-            setSlug(e.target.value);
-          }}
-        />
-      </div>
 
       <div className="rf-grid">
         <div className="rf-row">
@@ -514,22 +538,25 @@ export function RecordForm({
             ))}
           </select>
         </div>
+        <div className="rf-row">
+          <label className="rf-label" htmlFor="rf-tags">
+            タグ（カンマ区切り）
+          </label>
+          <input
+            id="rf-tags"
+            className="rf-input"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            placeholder="設計, 習慣"
+          />
+        </div>
       </div>
 
-      <div className="rf-row">
-        <label className="rf-label" htmlFor="rf-tags">
-          タグ（カンマ区切り）
-        </label>
-        <input
-          id="rf-tags"
-          className="rf-input"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="設計, 習慣"
-        />
-      </div>
-
-      <MarkdownEditor value={body} onChange={setBody} />
+      <MarkdownEditor
+        value={body}
+        onChange={setBody}
+        rightPane={<EditorPane body={body} references={references} />}
+      />
 
       {error && <p className="rf-error">{error}</p>}
 
@@ -537,7 +564,11 @@ export function RecordForm({
         <button className="rf-btn rf-primary" onClick={submit} disabled={busy}>
           {isEdit ? (busy ? "更新中…" : "記事を更新") : busy ? "作成中…" : "記事を作成"}
         </button>
-        <button className="rf-btn" onClick={onCancel} disabled={busy}>
+        <button
+          className="rf-btn"
+          onClick={() => router.push(cancelHref)}
+          disabled={busy}
+        >
           キャンセル
         </button>
       </div>

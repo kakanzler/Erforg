@@ -2,17 +2,10 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { TbrBook } from "@/lib/books";
 import { Stars } from "./Stars";
 import { TsundokuList } from "./TsundokuList";
-import { Modal } from "./Modal";
-
-// Loaded only when the form is opened, so the public bundle stays light.
-const NoteForm = dynamic(() => import("./NoteForm").then((m) => m.NoteForm), {
-  ssr: false,
-});
 
 /** Only the article fields the sidebar tree shows — never the markdown body. */
 export type ShellArticle = {
@@ -117,7 +110,6 @@ function NotebookPanel({
   onToggleCategory: (key: string) => void;
   here: string;
 }) {
-  const [open, setOpen] = useState(false);
   const total = noteCategories.reduce((n, c) => n + c.notes.length, 0);
 
   // Nothing to show and nothing to add — the heading alone would be noise.
@@ -130,27 +122,16 @@ function NotebookPanel({
           NOTEBOOK（{noteCategories.length}分類 ・ {total}件）
         </span>
         {editable && (
-          <button
-            type="button"
+          <Link
+            href="/edit/note"
             className="notebook-add"
             title="ノートを追加"
             aria-label="ノートを追加"
-            onClick={() => setOpen(true)}
           >
             ＋
-          </button>
+          </Link>
         )}
       </h2>
-
-      {open && (
-        <Modal onClose={() => setOpen(false)}>
-          <NoteForm
-            categories={noteCategories.map((c) => c.name)}
-            onCancel={() => setOpen(false)}
-            onDone={() => setOpen(false)}
-          />
-        </Modal>
-      )}
 
       {noteCategories.length === 0 ? (
         <p className="tree-empty">まだノートがありません。</p>

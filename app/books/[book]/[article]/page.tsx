@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  formatReadDate,
-  getAllBooks,
-  getArticle,
-  getBook,
-  getCategories,
-} from "@/lib/books";
+import { formatReadDate, getAllBooks, getArticle, getBook } from "@/lib/books";
 import { Stars } from "@/components/Stars";
 import { MarkdownView } from "@/components/MarkdownView";
 import { EditRecord } from "@/components/EditRecord";
@@ -70,23 +64,7 @@ export default function ArticlePage({
 
         <EditRecord
           bookSlug={book.slug}
-          books={getAllBooks().map((b) => ({
-            slug: b.slug,
-            title: b.title,
-            author: b.author,
-            category: b.category,
-          }))}
-          book={{
-            slug: article.slug,
-            title: article.title,
-            author: book.author,
-            category: book.category,
-            rating: article.rating,
-            dateRead: article.dateRead,
-            tags: article.tags,
-            content: article.content,
-          }}
-          categories={getCategories().map((c) => c.name)}
+          articleSlug={article.slug}
           editable={editable}
         />
 
