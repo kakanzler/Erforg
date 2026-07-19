@@ -453,6 +453,42 @@ a {
   border-color: var(--accent);
 }
 
+.tbr-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0 0 1rem;
+}
+
+.tbr-filter-input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: rgba(255, 253, 246, 0.55);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.45rem 0.7rem;
+}
+
+.tbr-filter-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.tbr-count {
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.tbr-empty {
+  padding: 1.2rem 0.25rem;
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
 .tbr-created-note {
   padding: 0.8rem 0.25rem;
   color: var(--ink-soft);
