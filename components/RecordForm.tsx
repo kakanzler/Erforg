@@ -59,12 +59,13 @@ type Tool = {
   toggle?: boolean;
 };
 const TOOLS: Tool[] = [
-  // \displaystyle draws the operator full size; \limits stacks the bounds above
-  // and below it (\int would otherwise keep them beside, even in display style).
+  // \displaystyle draws the operator full size. \int keeps its bounds beside the
+  // sign as super/subscripts (its default); \sum and \bigcup/\bigcap stack them
+  // above and below, which is the conventional setting for each.
   {
     sym: "∫",
     title: "定積分",
-    before: "$\\displaystyle\\int\\limits_{a}^{b} ",
+    before: "$\\displaystyle\\int_{a}^{b} ",
     after: " \\, dx$",
     ph: "f(x)",
   },
@@ -77,9 +78,27 @@ const TOOLS: Tool[] = [
     after: "$",
     ph: "a_i",
   },
+  {
+    sym: "∪",
+    title: "和集合",
+    before: "$\\displaystyle\\bigcup_{i=1}^{n} ",
+    after: "$",
+    ph: "A_i",
+  },
+  {
+    sym: "∩",
+    title: "積集合",
+    before: "$\\displaystyle\\bigcap_{i=1}^{n} ",
+    after: "$",
+    ph: "A_i",
+  },
   { sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
+  // A bare arrow, not a combining one over a letter — the mincho face has no
+  // U+20D7 and renders it as tofu.
+  { sym: "→", title: "ベクトル", before: "$\\vec{", after: "}$", ph: "a" },
   { sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
   { sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
+  { sym: "nΠr", title: "重複順列", before: "${}_{n}\\Pi_{k}$", after: "", ph: "" },
   { sym: "xⁿ", title: "上付き", before: "<sup>", after: "</sup>", ph: "2" },
   { sym: "xₙ", title: "下付き", before: "<sub>", after: "</sub>", ph: "2" },
   { sym: "小", title: "小文字", before: "<small>", after: "</small>", ph: "テキスト" },
