@@ -59,10 +59,24 @@ type Tool = {
   toggle?: boolean;
 };
 const TOOLS: Tool[] = [
-  { sym: "∫", title: "積分", before: "$\\int ", after: " \\, dx$", ph: "f(x)" },
+  // \displaystyle draws the operator full size; \limits stacks the bounds above
+  // and below it (\int would otherwise keep them beside, even in display style).
+  {
+    sym: "∫",
+    title: "定積分",
+    before: "$\\displaystyle\\int\\limits_{a}^{b} ",
+    after: " \\, dx$",
+    ph: "f(x)",
+  },
   { sym: "a⁄b", title: "分数", before: "$\\frac{", after: "}{b}$", ph: "a" },
   { sym: "√", title: "平方根", before: "$\\sqrt{", after: "}$", ph: "x" },
-  { sym: "∑", title: "総和", before: "$\\sum_{i=1}^{n} ", after: "$", ph: "a_i" },
+  {
+    sym: "∑",
+    title: "総和",
+    before: "$\\displaystyle\\sum\\limits_{i=1}^{n} ",
+    after: "$",
+    ph: "a_i",
+  },
   { sym: "log", title: "log", before: "$\\log ", after: "$", ph: "x" },
   { sym: "nCr", title: "組み合わせ", before: "${}_{n}\\mathrm{C}_{k}$", after: "", ph: "" },
   { sym: "nHr", title: "重複組み合わせ", before: "${}_{n}\\mathrm{H}_{k}$", after: "", ph: "" },
@@ -556,7 +570,8 @@ export function RecordForm({
       <div className="rf-row">
         <div className="rf-bodyhead">
           <label className="rf-label" htmlFor="rf-body">
-            本文（Markdown ・ 数式は $…$ ・ Ctrl+Z / Ctrl+Shift+Z）
+            本文（Markdown ・ 数式は $…$ ・ 図は ```mermaid ・ Ctrl+Z /
+            Ctrl+Shift+Z）
           </label>
           <button
             type="button"

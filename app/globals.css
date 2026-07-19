@@ -762,6 +762,34 @@ a {
   padding: 0;
 }
 
+/* ---- Mermaid diagrams ---- */
+.mermaid-diagram {
+  margin: 1.8rem 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* `pre.` keeps this at the same specificity as `.record-body pre`, and it wins
+   by source order so the dark code chrome does not apply. */
+pre.mermaid-error {
+  background: none;
+  color: var(--ink-faint);
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  margin: 1.8rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 .empty-note {
   text-align: center;
   color: var(--ink-soft);
