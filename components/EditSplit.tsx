@@ -157,9 +157,10 @@ export function EditorPane({
 }) {
   const [tab, setTab] = useState<Tab>("preview");
 
-  // Alt+P / Alt+R switch tabs from anywhere on the edit page. This component
-  // owns the tab state, so it owns these two; Alt+W (focus the textarea) is
-  // MarkdownEditor's own listener, since it owns the textarea ref instead.
+  // Alt+P toggles between the two panes from anywhere on the edit page. One key
+  // rather than two: Alt+R is taken by the NVIDIA overlay on this machine and
+  // never reaches the browser. Alt+W (focus the textarea) lives in
+  // MarkdownEditor, since it owns the textarea ref.
   useEffect(() => {
     function onWindowKeyDown(e: KeyboardEvent) {
       // Only `isComposing`: a Japanese IME reports keyCode 229 for keys it
@@ -169,10 +170,7 @@ export function EditorPane({
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.code === "KeyP" || e.key.toLowerCase() === "p") {
         e.preventDefault();
-        setTab("preview");
-      } else if (e.code === "KeyR" || e.key.toLowerCase() === "r") {
-        e.preventDefault();
-        setTab("reference");
+        setTab((t) => (t === "preview" ? "reference" : "preview"));
       }
     }
     // Capture phase: this fires before the focused element's own handlers, so
@@ -192,7 +190,7 @@ export function EditorPane({
           aria-selected={tab === "preview"}
           onClick={() => setTab("preview")}
         >
-          プレビュー <span className="edit-hotkey">(Alt+P)</span>
+          プレビュー
         </button>
         <button
           type="button"
@@ -202,8 +200,9 @@ export function EditorPane({
           aria-selected={tab === "reference"}
           onClick={() => setTab("reference")}
         >
-          参照 <span className="edit-hotkey">(Alt+R)</span>
+          参照
         </button>
+        <span className="edit-hotkey edit-tabs-hint">Alt+P で切替</span>
       </div>
 
       {/* Both panes stay mounted: unmounting the reference one would throw

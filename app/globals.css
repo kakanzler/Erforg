@@ -1434,9 +1434,16 @@ button.chip {
 .edit-tabs {
   grid-area: thead;
   display: flex;
+  align-items: baseline;
   gap: 0.4rem;
   border-bottom: 1px solid var(--rule);
   margin-bottom: 0.5rem;
+}
+
+/* Pushed to the right so it reads as a note about the strip, not a third tab. */
+.edit-tabs-hint {
+  margin-left: auto;
+  align-self: center;
 }
 
 .edit-pane-side-body {
