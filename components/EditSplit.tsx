@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MarkdownView } from "./MarkdownView";
 
@@ -59,13 +59,27 @@ function contentUrl(item: ReferenceItem): string {
  * component is declared at module level for the same reason: a nested
  * declaration would be a new type each render and remount this state away.
  */
-function ReferencePane({ references }: { references: ReferenceItem[] }) {
+function ReferencePane({
+  references,
+  active,
+}: {
+  references: ReferenceItem[];
+  active: boolean;
+}) {
   const [selectedId, setSelectedId] = useState("");
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const pickerRef = useRef<HTMLSelectElement>(null);
 
   const selected = references.find((r) => r.id === selectedId) ?? null;
+
+  // Switching to 参照 is always a move towards choosing something to read, so
+  // the picker takes focus and the writer can change document straight away —
+  // then Alt+W puts the caret back in the editor.
+  useEffect(() => {
+    if (active) pickerRef.current?.focus();
+  }, [active]);
 
   // Keyed on the id, not on the item object: `references` is a prop that the
   // form re-passes on every keystroke, and depending on the found object would
@@ -110,6 +124,7 @@ function ReferencePane({ references }: { references: ReferenceItem[] }) {
     <>
       <div className="edit-ref-picker">
         <select
+          ref={pickerRef}
           className="rf-input"
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
@@ -213,7 +228,7 @@ export function EditorPane({
         </div>
       </div>
       <div className="edit-pane edit-pane-side-body" hidden={tab !== "reference"}>
-        <ReferencePane references={references} />
+        <ReferencePane references={references} active={tab === "reference"} />
       </div>
     </>
   );
