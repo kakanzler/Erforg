@@ -32,9 +32,9 @@ export default function BookPage({ params }: { params: { book: string } }) {
           {book.tags.length > 0 && (
             <div className="tags" style={{ justifyContent: "center" }}>
               {book.tags.map((t) => (
-                <span key={t} className="tag">
+                <Link key={t} href={`/tags/${encodeURIComponent(t)}`} className="tag">
                   {t}
-                </span>
+                </Link>
               ))}
             </div>
           )}

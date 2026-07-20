@@ -58,6 +58,24 @@ function buildNote(data: Payload, title: string): string {
   return `${frontmatter}${(data.body ?? "").trim()}\n`;
 }
 
+/**
+ * Drop a category folder that a move just emptied, so the sidebar stops
+ * listing it. Best-effort: the note has already been re-filed successfully by
+ * the time this runs, so a failure here must never fail the request.
+ */
+function removeIfEmptyCategory(category: string): void {
+  try {
+    const dir = path.join(NOTES_DIR, category);
+    // Stay strictly inside content/notes, and never delete NOTES_DIR itself.
+    if (path.dirname(dir) !== NOTES_DIR) return;
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return;
+    if (fs.readdirSync(dir).length !== 0) return;
+    fs.rmdirSync(dir);
+  } catch {
+    // Leaving an empty folder behind is harmless; swallow and move on.
+  }
+}
+
 const disabled = () =>
   NextResponse.json(
     { error: "この機能はローカル開発時のみ利用できます。" },
@@ -168,6 +186,12 @@ export async function PUT(req: Request) {
       { error: `書き込みに失敗しました: ${(e as Error).message}` },
       { status: 500 }
     );
+  }
+
+  // A category the note just left may now be empty — don't leave a ghost
+  // category in the sidebar. Only the source, only on an actual change.
+  if (moved && category !== originalCategory) {
+    removeIfEmptyCategory(originalCategory);
   }
 
   return NextResponse.json({ ok: true, category, slug });

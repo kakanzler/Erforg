@@ -1015,6 +1015,17 @@ button.chip {
   padding: 0.05rem 0.4rem;
 }
 
+/* Tag chips that link to /tags/<tag> highlight the way category chips do. */
+a.tag {
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+a.tag:hover {
+  background: var(--accent);
+  color: #fdf6e6;
+  border-color: var(--accent);
+}
+
 /* ---- 積んでる本 (to-read) ---- */
 .tbr-list {
   list-style: none;

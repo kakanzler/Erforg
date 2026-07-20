@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatNoteDate, getNote, getNoteCategories } from "@/lib/notes";
 import { MarkdownView } from "@/components/MarkdownView";
@@ -42,9 +43,9 @@ export default function NotePage({
           {note.tags.length > 0 && (
             <div className="tags" style={{ justifyContent: "center" }}>
               {note.tags.map((t) => (
-                <span key={t} className="tag">
+                <Link key={t} href={`/tags/${encodeURIComponent(t)}`} className="tag">
                   {t}
-                </span>
+                </Link>
               ))}
             </div>
           )}

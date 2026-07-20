@@ -54,9 +54,9 @@ export default function ArticlePage({
           {article.tags.length > 0 && (
             <div className="tags" style={{ justifyContent: "center" }}>
               {article.tags.map((t) => (
-                <span key={t} className="tag">
+                <Link key={t} href={`/tags/${encodeURIComponent(t)}`} className="tag">
                   {t}
-                </span>
+                </Link>
               ))}
             </div>
           )}
