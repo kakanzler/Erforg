@@ -1,4 +1,4 @@
-# Erfolg — 読書記録
+# Erfolg-Forge — 読書記録
 
 羊皮紙のテクスチャに綴る、Markdown ベースの読書記録サイト。
 Next.js (App Router) 製。DB は使わず `content/` の Markdown がそのまま中身になり、

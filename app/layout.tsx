@@ -33,18 +33,18 @@ const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Erfolg — 読書記録",
+  title: "Erfolg-Forge — 読書記録",
   description: "羊皮紙に綴る、読書の記録。",
   openGraph: {
-    title: "Erfolg — 読書記録",
+    title: "Erfolg-Forge — 読書記録",
     description: "羊皮紙に綴る、読書の記録。",
     type: "website",
     locale: "ja_JP",
-    siteName: "Erfolg",
+    siteName: "Erfolg-Forge",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Erfolg — 読書記録",
+    title: "Erfolg-Forge — 読書記録",
     description: "羊皮紙に綴る、読書の記録。",
   },
 };

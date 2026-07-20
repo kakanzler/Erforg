@@ -3,7 +3,7 @@ import { getTsundoku } from "@/lib/books";
 import { TsundokuAuthor } from "@/components/TsundokuAuthor";
 
 export const metadata = {
-  title: "積んでる本 — Erfolg",
+  title: "積んでる本 — Erfolg-Forge",
 };
 
 export default function TsundokuPage() {

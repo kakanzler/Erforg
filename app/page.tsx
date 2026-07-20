@@ -11,7 +11,7 @@ export default function Home() {
 
   return (
     <main className="container">
-      <h1 className="site-title">Erfolg</h1>
+      <h1 className="site-title">Erfolg-Forge</h1>
       <p className="site-subtitle">Reading Records</p>
 
       <div className="top-actions">

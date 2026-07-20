@@ -5,7 +5,7 @@ import { RecordForm } from "@/components/RecordForm";
 import { buildReferences } from "../references";
 
 export const metadata = {
-  title: "記事を作成 — Erfolg",
+  title: "記事を作成 — Erfolg-Forge",
 };
 
 /**

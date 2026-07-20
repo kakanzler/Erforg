@@ -10,7 +10,7 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: { params: { book: string } }) {
   const book = getBook(params.book);
-  return { title: book ? `${book.title} — Erfolg` : "Erfolg" };
+  return { title: book ? `${book.title} — Erfolg-Forge` : "Erfolg-Forge" };
 }
 
 export default function BookPage({ params }: { params: { book: string } }) {

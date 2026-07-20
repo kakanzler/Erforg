@@ -17,7 +17,7 @@ export function generateMetadata({
   params: { book: string; article: string };
 }) {
   const article = getArticle(params.book, params.article);
-  return { title: article ? `${article.title} — Erfolg` : "Erfolg" };
+  return { title: article ? `${article.title} — Erfolg-Forge` : "Erfolg-Forge" };
 }
 
 export default function ArticlePage({

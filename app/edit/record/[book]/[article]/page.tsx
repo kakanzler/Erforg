@@ -5,7 +5,7 @@ import { RecordForm } from "@/components/RecordForm";
 import { buildReferences } from "../../../references";
 
 export const metadata = {
-  title: "記事を編集 — Erfolg",
+  title: "記事を編集 — Erfolg-Forge",
 };
 
 /** 既存の読書記録の編集ページ。 */

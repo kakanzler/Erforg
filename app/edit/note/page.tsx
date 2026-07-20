@@ -5,7 +5,7 @@ import { NoteForm } from "@/components/NoteForm";
 import { buildReferences } from "../references";
 
 export const metadata = {
-  title: "ノートを作成 — Erfolg",
+  title: "ノートを作成 — Erfolg-Forge",
 };
 
 /** NOTEBOOK ノートの新規作成ページ。 */

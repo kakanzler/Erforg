@@ -15,7 +15,7 @@ export function generateMetadata({
   params: { category: string; slug: string };
 }) {
   const note = getNote(params.category, params.slug);
-  return { title: note ? `${note.title} — Erfolg` : "Erfolg" };
+  return { title: note ? `${note.title} — Erfolg-Forge` : "Erfolg-Forge" };
 }
 
 export default function NotePage({
