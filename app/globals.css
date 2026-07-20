@@ -1382,10 +1382,16 @@ button.chip {
   margin: 0 0 0.5rem;
 }
 
-/* The inner wrapper inside MarkdownEditor holding textarea | rightPane. */
+/* The inner wrapper inside MarkdownEditor holding two rows — a header per
+   column, then the textarea beside the reading pane — so the header row's
+   height is shared by both columns and row 2 necessarily starts level. */
 .edit-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "ehead thead"
+    "ebody tbody";
   gap: 1.2rem;
   align-items: start;
   margin-top: 0.6rem;
@@ -1394,6 +1400,27 @@ button.chip {
 .edit-pane {
   /* Without this a long unbroken line inside a pane widens the whole grid. */
   min-width: 0;
+}
+
+.edit-pane-editor-head {
+  grid-area: ehead;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Small-type key hint riding beside a label — the tab titles and the editor
+   column header all use it. */
+.edit-hotkey {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+.edit-pane-editor {
+  grid-area: ebody;
 }
 
 /* Writing happens here, so the panes take the viewport rather than a token
@@ -1405,10 +1432,15 @@ button.chip {
 }
 
 .edit-tabs {
+  grid-area: thead;
   display: flex;
   gap: 0.4rem;
   border-bottom: 1px solid var(--rule);
   margin-bottom: 0.5rem;
+}
+
+.edit-pane-side-body {
+  grid-area: tbody;
 }
 
 .edit-tab {
@@ -1453,7 +1485,7 @@ button.chip {
 
 /* The reference tab spends its picker's height, so its body is that much
    shorter than the preview's — keep the two panes the same size. */
-.edit-pane-side .edit-ref-picker + .edit-pane-body {
+.edit-pane-side-body .edit-ref-picker + .edit-pane-body {
   height: calc(100vh - 29rem);
   min-height: 23rem;
 }
@@ -1463,15 +1495,23 @@ button.chip {
   font-size: 0.85rem;
 }
 
-/* Side by side stops paying below this width — the editor comes first. */
+/* Side by side stops paying below this width — the editor comes first, and
+   the shared header row no longer applies since the two columns collapse
+   into one, stacked, column. */
 @media (max-width: 1000px) {
   .edit-split {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas:
+      "ehead"
+      "ebody"
+      "thead"
+      "tbody";
   }
 
   .edit-pane-editor .rf-textarea,
   .edit-pane-body,
-  .edit-pane-side .edit-ref-picker + .edit-pane-body {
+  .edit-pane-side-body .edit-ref-picker + .edit-pane-body {
     height: 60vh;
     min-height: 20rem;
   }

@@ -382,6 +382,29 @@ export function MarkdownEditor({
     };
   }, []);
 
+  // Alt+W: focus the textarea and put the caret at the end, from anywhere on
+  // the page (not just while the textarea already has focus — that is the
+  // whole point of the shortcut). Attached on window, independent of the
+  // chord handler above, which only ever sees keydowns already inside the
+  // textarea.
+  useEffect(() => {
+    function onWindowKeyDown(e: KeyboardEvent) {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+      const isW = e.code === "KeyW" || e.key.toLowerCase() === "w";
+      if (!isW) return;
+      e.preventDefault();
+      const ta = taRef.current;
+      if (ta) {
+        ta.focus();
+        const end = ta.value.length;
+        ta.setSelectionRange(end, end);
+      }
+    }
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => window.removeEventListener("keydown", onWindowKeyDown);
+  }, []);
+
   /** Run a tool exactly as clicking its button does. */
   function runTool(t: Tool) {
     const before = t.useColor ? `<span style="color:${color}">` : t.before;
@@ -573,6 +596,11 @@ export function MarkdownEditor({
 
       {rightPane ? (
         <div className="edit-split">
+          {/* Row 1: a header for each column, so both share the same row
+              height and row 2 (the two bodies) necessarily starts level. */}
+          <div className="edit-pane edit-pane-editor-head">
+            編集 <span className="edit-hotkey">(Alt+W)</span>
+          </div>
           <div className="edit-pane edit-pane-editor">
             <textarea
               id={id}
@@ -585,7 +613,10 @@ export function MarkdownEditor({
               rows={14}
             />
           </div>
-          <div className="edit-pane edit-pane-side">{rightPane}</div>
+          {/* rightPane (EditorPane) is a fragment of its own tab strip plus
+              two panes, all placed directly as grid items so the tab strip
+              shares row 1 and the panes share row 2 with the left column. */}
+          {rightPane}
         </div>
       ) : (
         <textarea

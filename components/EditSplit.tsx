@@ -157,6 +157,25 @@ export function EditorPane({
 }) {
   const [tab, setTab] = useState<Tab>("preview");
 
+  // Alt+P / Alt+R switch tabs from anywhere on the edit page. This component
+  // owns the tab state, so it owns these two; Alt+W (focus the textarea) is
+  // MarkdownEditor's own listener, since it owns the textarea ref instead.
+  useEffect(() => {
+    function onWindowKeyDown(e: KeyboardEvent) {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.code === "KeyP" || e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        setTab("preview");
+      } else if (e.code === "KeyR" || e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        setTab("reference");
+      }
+    }
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => window.removeEventListener("keydown", onWindowKeyDown);
+  }, []);
+
   return (
     <>
       <div className="edit-tabs" role="tablist">
@@ -168,7 +187,7 @@ export function EditorPane({
           aria-selected={tab === "preview"}
           onClick={() => setTab("preview")}
         >
-          プレビュー
+          プレビュー <span className="edit-hotkey">(Alt+P)</span>
         </button>
         <button
           type="button"
@@ -178,18 +197,18 @@ export function EditorPane({
           aria-selected={tab === "reference"}
           onClick={() => setTab("reference")}
         >
-          参照
+          参照 <span className="edit-hotkey">(Alt+R)</span>
         </button>
       </div>
 
       {/* Both panes stay mounted: unmounting the reference one would throw
           away the chosen document every time the writer peeks at the preview. */}
-      <div hidden={tab !== "preview"}>
+      <div className="edit-pane edit-pane-side-body" hidden={tab !== "preview"}>
         <div className="edit-pane-body record-body">
           <MarkdownView>{body}</MarkdownView>
         </div>
       </div>
-      <div hidden={tab !== "reference"}>
+      <div className="edit-pane edit-pane-side-body" hidden={tab !== "reference"}>
         <ReferencePane references={references} />
       </div>
     </>
