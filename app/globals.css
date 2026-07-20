@@ -1147,12 +1147,6 @@ a.tag:hover {
   font-size: 0.9rem;
 }
 
-.tbr-created-note {
-  padding: 0.8rem 0.25rem;
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-}
-
 /* ---- Record authoring form ---- */
 .rf {
   margin: 0.5rem 0 1.5rem;
