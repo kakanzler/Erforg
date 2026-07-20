@@ -162,7 +162,10 @@ export function EditorPane({
   // MarkdownEditor's own listener, since it owns the textarea ref instead.
   useEffect(() => {
     function onWindowKeyDown(e: KeyboardEvent) {
-      if (e.isComposing || e.keyCode === 229) return;
+      // Only `isComposing`: a Japanese IME reports keyCode 229 for keys it
+      // handles, but an Alt-modified key is never composition text, so bailing
+      // on 229 too would disable these tabs while writing in Japanese.
+      if (e.isComposing) return;
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.code === "KeyP" || e.key.toLowerCase() === "p") {
         e.preventDefault();
@@ -172,8 +175,10 @@ export function EditorPane({
         setTab("reference");
       }
     }
-    window.addEventListener("keydown", onWindowKeyDown);
-    return () => window.removeEventListener("keydown", onWindowKeyDown);
+    // Capture phase: this fires before the focused element's own handlers, so
+    // nothing in between can swallow the shortcut.
+    window.addEventListener("keydown", onWindowKeyDown, true);
+    return () => window.removeEventListener("keydown", onWindowKeyDown, true);
   }, []);
 
   return (

@@ -389,7 +389,11 @@ export function MarkdownEditor({
   // textarea.
   useEffect(() => {
     function onWindowKeyDown(e: KeyboardEvent) {
-      if (e.isComposing || e.keyCode === 229) return;
+      // Only `isComposing` here. A Japanese IME reports keyCode 229 for keys it
+      // routes through itself, but an Alt-modified key is never composition
+      // text — bailing on 229 as well would silently kill this shortcut for
+      // anyone typing in Japanese.
+      if (e.isComposing) return;
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
       const isW = e.code === "KeyW" || e.key.toLowerCase() === "w";
       if (!isW) return;
@@ -401,8 +405,10 @@ export function MarkdownEditor({
         ta.setSelectionRange(end, end);
       }
     }
-    window.addEventListener("keydown", onWindowKeyDown);
-    return () => window.removeEventListener("keydown", onWindowKeyDown);
+    // Capture phase, for the same reason as the tab shortcuts: nothing between
+    // window and the focused element gets a chance to swallow it first.
+    window.addEventListener("keydown", onWindowKeyDown, true);
+    return () => window.removeEventListener("keydown", onWindowKeyDown, true);
   }, []);
 
   /** Run a tool exactly as clicking its button does. */
@@ -413,8 +419,12 @@ export function MarkdownEditor({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Never take a keystroke away from a Japanese IME.
-    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
+    // Never take a keystroke away from a Japanese IME while it is composing.
+    if (e.nativeEvent.isComposing) return;
+    // keyCode 229 means "the IME is handling this key". That is true of the
+    // letters it composes, but not of an Alt-modified key — treating those as
+    // IME input would disable every chord while writing in Japanese.
+    if (!e.altKey && e.nativeEvent.keyCode === 229) return;
 
     // Step 1 — Alt+<prefix> arms (or re-arms) a group.
     if (e.altKey && !e.ctrlKey && !e.metaKey) {
